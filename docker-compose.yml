@@ -1,0 +1,103 @@
+name: bridge-agents
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: development
+      ALLOW_DEV_LOGIN: "true"
+      AUTH_VERIFIER: hs256
+      JWT_SECRET: local-demo-secret-change-me-please-32b
+      JWT_ISSUER: bridge-agents
+      # sqlite lives on the named volume so restarts keep the data
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////data/bridge-agents.db}
+      STORAGE_DIR: /data/uploads
+      ALLOWED_HOSTS: "*"
+      LLM_MODE: mock
+      OPENAI_BASE_URL: http://mock-llm:8001/v1
+      OPENAI_API_KEY: not-needed
+      OPENAI_MODEL: mock-model
+      OPENAI_TIMEOUT: "30"
+      OPENAI_MAX_RETRIES: "0"
+      AGENT_TOOLS_ENABLED: "true"
+      AGENT_TOOLS: '["get_current_time", "calculate", "search_docs"]'
+      WS_MAX_CONNECTIONS: "10000"
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - bridge_agents_data:/data
+    depends_on:
+      mock-llm:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+
+  mock-llm:
+    build:
+      context: ./mock
+      dockerfile: Dockerfile
+    expose:
+      - "8001"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Optional MySQL profile: `docker compose --profile mysql up`.
+  # Point DATABASE_URL at it when starting:
+  #   DATABASE_URL=mysql+aiomysql://bridge_agents:bridge_agents_demo@mysql:3306/bridge_agents
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/index.html"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.3
+    profiles: ["mysql"]
+    environment:
+      MYSQL_DATABASE: bridge_agents
+      MYSQL_USER: bridge_agents
+      MYSQL_PASSWORD: bridge_agents_demo
+      MYSQL_ROOT_PASSWORD: root-demo
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot-demo"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  bridge_agents_data:
+  mysql_data:
