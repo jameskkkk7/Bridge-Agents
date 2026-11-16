@@ -1,0 +1,310 @@
+# Engineering reference
+
+This page holds the technical detail behind the product-facing
+[README](../README.md): architecture, runtime behaviour, API surface,
+configuration, quality gates and design trade-offs.
+
+> Snapshot at the time of writing (0.1.0 in progress). Numbers are reproduced
+> by the commands shown next to them and are refreshed as milestones land.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph serving["Serving layer"]
+        api["FastAPI app"]
+        auth["auth: HS256 / PEM / JWKS"]
+        admin["admin graph API"]
+        chat["sessions · messages · images"]
+        realtime["websocket gateway"]
+        web["browser demo"]
+        lark["Lark webhook"]
+    end
+    subgraph runtime["Agent runtime"]
+        state_graph["LangGraph state graph"]
+        nodes["system · agent · tools · custom · sanitize · review"]
+        gate["streaming review gate"]
+    end
+    subgraph deps["Model and knowledge"]
+        model["OpenAI-compatible model<br/>(mock in the demo)"]
+        tools["tools: time · calculate · search_docs"]
+        kb["docs/kb"]
+    end
+    api --> auth
+    api --> admin
+    api --> chat
+    api --> realtime
+    web --> api
+    lark --> api
+    chat --> state_graph
+    realtime --> state_graph
+    admin --> state_graph
+    state_graph --> nodes
+    nodes --> model
+    nodes --> tools
+    kb --> tools
+    nodes --> gate
+    api -.-> future["Slack webhook<br/>roadmap"]
+    classDef done fill:#0f2742,stroke:#3b82f6,color:#e2e8f0
+    classDef next fill:#161b28,stroke:#64748b,color:#94a3b8,stroke-dasharray:4
+    class api,auth,admin,chat,realtime,web,lark,state_graph,nodes,gate,model,tools,kb done
+    class future next
+```
+
+A reviewed reply, as implemented in the runtime:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Caller
+    participant R as Runtime
+    participant M as Reply model
+    participant V as Reviewer
+    C->>R: stream(history)
+    R->>M: agent node generates a draft
+    M-->>R: tokens (buffered)
+    R->>V: review node judges the draft
+    alt accepted
+        V-->>R: normal = true
+        R-->>C: flush buffered tokens
+    else rejected
+        V-->>R: normal = false
+        R->>M: retry within the retry budget
+        Note over R: budget spent → fallback message or pass-through
+    end
+```
+
+## Runtime
+
+The graph is data: `PUT /api/v1/admin/runtime-config/agent-graph-config` validates
+and compiles it before saving, then hot-swaps the runtime. Six node kinds cover
+the flow:
+
+| Node | What it does | Notable configuration |
+|---|---|---|
+| `system` | Injects the agent role prompt without calling a model | `system_prompt` |
+| `agent` | Generates the customer-facing reply; tools bound only when the graph routes them | — |
+| `tools` | Executes selected tools through a LangGraph tool node | `tools` allow-list |
+| `custom` | Extra model step with its own prompt (kept out of the graph state) | `system_prompt` |
+| `sanitize` | Masks configured words in message content | `banned_words`, `replacement` |
+| `review` | Gates the reply: accept, retry, fallback or pass-through | `system_prompt`, `max_retries`, `on_block`, `fallback_message` |
+
+The default graph is `system → agent → review → end` with a `block` edge back
+to the agent, so a fresh deployment can demonstrate the gate immediately. A
+tool node and `agent --tool_call--> tools` edge are added automatically when
+tools are enabled. Everything is covered by offline tests with a fake model and
+a fake compiled graph — no network calls in CI.
+
+Replies are produced by the reply engine. It streams agent updates, throttles
+broadcasts to one every 80 ms, persists the final reply through a single
+handler and always emits `stream_end` — including for empty replies, model
+errors and cancellations — so clients can clear their typing state. While
+human takeover is on, generation is skipped; cancelling a reply cancels the
+in-flight task so a late AI answer cannot arrive after a human has replied.
+The websocket gateway authenticates with `?token=`, limits each user to 100
+frames per minute, accepts 4000-character messages and image uploads limited
+by MIME type and `MAX_IMAGE_SIZE`.
+
+## API (implemented now)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | Liveness only; deliberately does not touch the database |
+| GET | `/` | Service name, version and docs link |
+| POST | `/api/v1/auth/verify` | Validate a provider token and return the local identity |
+| GET | `/api/v1/auth/me` | `{id, role, email}` for the current bearer token |
+| POST | `/api/v1/auth/dev-login?role=user\|agent\|admin` | Demo-only local token (non-production) |
+| GET | `/api/v1/sessions` | List the caller's conversations with unread counts |
+| POST | `/api/v1/sessions` | Open a conversation |
+| GET | `/api/v1/sessions/{session_id}` | Conversation detail |
+| PUT | `/api/v1/sessions/{session_id}` | Rename a conversation |
+| DELETE | `/api/v1/sessions/{session_id}` | Close a conversation |
+| POST | `/api/v1/sessions/{session_id}/read` | Mark the conversation as read |
+| GET | `/api/v1/sessions/{session_id}/messages` | Cursor-paginated message history |
+| POST | `/api/v1/sessions/{session_id}/messages` | Send a message (customer messages trigger the AI) |
+| POST | `/api/v1/sessions/{session_id}/images` | Upload and broadcast an image |
+| GET | `/api/v1/sessions/{session_id}/images/{image_id}` | Download an image |
+| WS | `/ws/v1/chat?token=<jwt>` | Join conversations, send messages/images and receive streamed replies |
+| GET | `/api/v1/admin/runtime-config/agent-tools` | Tools a graph node can bind |
+| GET | `/api/v1/admin/runtime-config/agent-graph` | Current graph as Mermaid source |
+| GET | `/api/v1/admin/runtime-config/agent-graph-config` | Editable graph JSON |
+| PUT | `/api/v1/admin/runtime-config/agent-graph-config` | Validate, persist and activate a graph |
+| DELETE | `/api/v1/admin/runtime-config/agent-graph-config` | Drop the saved graph and restore the default |
+| GET | `/api/v1/admin/sessions` | List every conversation for support |
+| GET | `/api/v1/admin/sessions/{session_id}` | Conversation detail with its owner |
+| GET | `/api/v1/admin/sessions/{session_id}/messages` | Transcript for support staff |
+| PUT | `/api/v1/admin/sessions/{session_id}/status` | Change conversation status |
+| PUT | `/api/v1/admin/sessions/{session_id}/takeover` | Enable or release human takeover |
+| GET | `/api/v1/admin/users` | User directory (ADMIN only) |
+| POST | `/webhook/lark` | Signed Lark event intake (disabled by default) |
+
+Admin routes accept `AGENT` and `ADMIN` tokens; the rest of the API requires a
+valid bearer token. The Lark webhook verifies request signatures, decrypts
+encrypted events and runs support commands for whitelisted agents; it stays
+disabled unless configured.
+
+## Configuration
+
+Every setting maps to an upper-case environment variable; `.env.example` is
+the reference. Defaults are chosen so a fresh checkout runs without
+credentials.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_ENV` | `development` | `production` disables the demo login |
+| `DEBUG` | `false` | Enables `/docs` and `/redoc` |
+| `ALLOWED_HOSTS` | `*` in code, `localhost,127.0.0.1` in the example | Trusted host middleware |
+| `CORS_ORIGINS` | empty | Comma-separated browser origins |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./data/bridge-agents.db` | Any SQLAlchemy async URL |
+| `STORAGE_DIR` | `./data/uploads` | Uploaded image storage |
+| `AUTH_VERIFIER` | `hs256` | `hs256`, `rs256_pem` or `jwks` |
+| `JWT_SECRET` / `JWT_ISSUER` / `JWT_AUDIENCE` | placeholder / `bridge-agents` / empty | Local token signing and verification |
+| `JWT_EXPIRES_MINUTES` | `1440` | Token lifetime |
+| `RS256_PUBLIC_KEY_PATH` / `JWKS_URL` | empty | Used by the matching verifier |
+| `ALLOW_DEV_LOGIN` | `false` | Demo login; never mounted in production |
+| `LLM_MODE` | `mock` | `mock` keeps the demo reproducible |
+| `OPENAI_BASE_URL` / `OPENAI_MODEL` / `OPENAI_API_KEY` | mock endpoint / `mock-model` / `not-needed` | Any OpenAI-compatible endpoint |
+| `OPENAI_THINKING_ENABLED` | `false` | Compatibility switch for providers with a thinking flag |
+| `AGENT_TOOLS_ENABLED` / `AGENT_TOOLS` | `false` / `[]` in code, enabled in the example | Binding still requires a tool route in the graph |
+| `AGENT_INJECTION_PATTERNS` | empty | Empty uses the built-in guard |
+| `WS_MAX_CONNECTIONS` | `10000` | Maximum concurrent websocket connections |
+| `LARK_ENABLED` / `LARK_APP_ID` / `LARK_APP_SECRET` | `false` / empty | Enable the Lark channel |
+| `LARK_ENCRYPT_KEY` / `LARK_VERIFICATION_TOKEN` | empty | Event decryption and verification token |
+| `LARK_AGENT_OPEN_IDS` | empty | Open ids allowed to run support commands |
+| `LARK_COMMANDS` | `/takeover,/release,/status,/help` | Commands enabled in Lark chats |
+| `LARK_API_BASE_URL` | `https://open.feishu.cn` | Lark API base; overridable for a local mock |
+| `LOG_LEVEL` | `INFO` | stdout logging only |
+
+## Lark channel
+
+The Lark adapter (`app/services/channels/lark.py`) is disabled by default: with
+`LARK_ENABLED=false` the webhook returns 404 and no outbound request is made.
+When enabled it:
+
+* verifies `X-Lark-Signature` as `sha256(timestamp + nonce + encrypt_key + raw body)`;
+* decrypts `{"encrypt": ...}` events with AES-256-CBC (`SHA256(LARK_ENCRYPT_KEY)`,
+  16-byte IV prefix, PKCS7 padding) — tests include Lark's published vector;
+* accepts text messages from open ids listed in `LARK_AGENT_OPEN_IDS`;
+* runs `/takeover`, `/release`, `/status` and `/help` (Chinese aliases included),
+  binding a chat to a session on the first `/takeover <session-id>`;
+* replies through the tenant access token API.
+
+`LARK_COMMANDS` restricts which commands are enabled. Tests inject a mocked
+HTTP transport, so CI never contacts a real Lark endpoint.
+
+## Library package
+
+`packages/bridge_agents/` builds a separate distribution (`bridge-agents`,
+import `bridge_agents`) with the reusable runtime:
+
+| Module | Contents |
+|---|---|
+| `bridge_agents.agent` | LangGraph pipeline, node builders, graph validation, default graph |
+| `bridge_agents.auth` | HS256 / RS256-PEM / JWKS verifiers, roles and identities |
+| `bridge_agents.guard` | prompt-injection guard |
+| `bridge_agents.rate_limit` | proxy-aware client address and fixed-window limiter |
+| `bridge_agents.config` / `.errors` | settings and typed failures |
+
+The server imports the library through thin compatibility modules, so both use
+one implementation. The FastAPI app, persistence models, web UI and Lark
+adapter are intentionally not part of the wheel.
+
+```bash
+uv sync
+uv build --package bridge-agents
+python -m venv /tmp/ba && /tmp/ba/bin/pip install dist/bridge_agents-0.1.0-py3-none-any.whl
+```
+
+## Web demo
+
+`web/` is a small React + TypeScript single-page app (no UI framework) with three pages:
+
+| Page | Purpose |
+|---|---|
+| `/` | Customer chat: streaming replies, review-gate fallback, image upload, reconnect indicator |
+| `/graph` | Edit the flow JSON, save (compile-checked) or reset, and inspect the Mermaid source |
+| `/admin` | Support desk: conversation list, transcript, takeover/release and close |
+
+Nginx serves the app in the demo stack and proxies `/api`, `/ws` and `/webhook`
+to the API, so the browser is same-origin. Locally the Vite dev server proxies
+those paths to `127.0.0.1:8000` (`cd web && npm install && npm run dev`).
+Front-end budget: 12 source files and 857 lines including deployment assets
+(limit: 12 files / 900 lines).
+
+## One-command demo stack
+
+`docker compose up --build` starts the API, the web demo and a deterministic mock model:
+
+| Service | Build | Port | Notes |
+|---|---|---|---|
+| `api` | root `Dockerfile` | `8000:8000` (`API_PORT` overrides) | demo login enabled; SQLite on the `bridge_agents_data` volume |
+| `mock-llm` | `mock/Dockerfile` | internal `8001` | deterministic OpenAI-compatible model, no outbound calls |
+| `web` | `web/Dockerfile` | `80:80` (`WEB_PORT` overrides) | React demo served by nginx, proxying `/api`, `/ws` and `/webhook` |
+| `mysql` | `mysql:8.3` | internal `3306` | optional profile: `docker compose --profile mysql up` |
+
+The runtime points at `http://mock-llm:8001/v1`, so a fresh clone needs no API
+key. The mock covers the normal reply, the refund promise that the review gate
+rejects, the `[[tool]]` tool-call round trip and the reviewer verdict; the
+protocol is documented in [mock/README.md](../mock/README.md). Conversations and
+images live on the named volume and survive `docker compose restart api`. Open
+`http://localhost` for the web demo and `http://localhost:8000/health` for the
+API.
+
+## Quality gates
+
+```bash
+uv run pytest -q                                                            # 177 passed
+uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov-fail-under=70  # 91%
+uv run ruff check .                                                         # clean
+uv run ruff format --check .                                                # clean
+uv run python scripts/check_sanitized.py                                    # exit 0
+```
+
+Current snapshot: **177 tests** collected, **91%** combined line coverage of
+`app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
+clean, and the repository sanitisation gate passes. The tree today is 3,368
+lines of application Python, a 1,650-line library, 3,129 lines of tests and an
+857-line web demo.
+
+## Design decisions
+
+| Decision | Why | Cost |
+|---|---|---|
+| Buffer streamed tokens while a review exists | A rejected draft can never flash on screen | Higher first-token latency when the gate is present |
+| Compile the graph before saving it | Route mistakes fail at save time, not in production | Saving does real work; broken configs are rejected exactly because of it |
+| Bind tools only when the graph routes tool calls | The model cannot emit a call that no node executes | The graph must declare the route explicitly |
+| Write a role once, on first login | Later token claims cannot silently change privileges | Role changes require an explicit admin action (roadmap) |
+| Mock model mode by default | The demo is deterministic and needs no API key | The mock must be kept in sync with the runtime contract (tests enforce it) |
+
+## Repository layout
+
+```
+app/
+  core/agent/   LangGraph runtime, node builders, review gate, prompts, tools, injection guard
+  core/         token verifiers, exception envelope, logging, helpers
+  api/          auth, sessions, messages, images, admin support desk and graph routes
+  models/       async SQLAlchemy models and schema bootstrap
+  schemas/      request/response models
+  services/     sessions, messages, images, reply engine/handler, runtime config, takeover
+  services/channels/  channel abstraction and the Lark adapter
+  ws/           websocket gateway (subscriptions, streaming, rate limiting)
+  main.py       application factory and lifespan wiring
+packages/bridge_agents/  standalone core library (agent runtime, auth, guard, rate limit)
+tests/          177 offline tests (fake model, fake compiled graph, mock Lark transport)
+docs/kb/        fictional product documentation used by the search tool
+docs/assets/    documentation artwork
+scripts/        init_db.py, check_sanitized.py, allowlist
+Dockerfile      api image (non-root, healthcheck)
+docker-compose.yml  api + mock-llm + web (+ optional mysql profile)
+mock/           deterministic OpenAI-compatible mock model
+web/            React demo (chat, flow editor, support desk) served by nginx
+```
+
+## Sanitisation gate
+
+This repository is an independent rewrite. `scripts/check_sanitized.py` scans
+every tracked file and the commit history for forbidden content, and checks
+for committed environment files, key material and absolute paths. Real
+credential values never live in the repository: they are read from a
+git-ignored local file or injected by CI, and the gate is covered by its own
+negative test (an injected probe fails the build).
