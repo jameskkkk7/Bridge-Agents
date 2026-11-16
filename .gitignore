@@ -1,0 +1,44 @@
+# Local environment files (keep the committed example)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime data
+*.db
+*.sqlite3
+data/
+uploads/
+logs/
+
+# Local secret deny-list used by the sanitisation gate (never commit)
+scripts/.deny.local
+
+# Build output
+dist/
+build/
+*.egg-info/
+
+# Frontend
+web/node_modules/
+web/dist/
+npm-debug.log*
+
+# Key and certificate material
+*.pem
+*.key
+*.crt
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
