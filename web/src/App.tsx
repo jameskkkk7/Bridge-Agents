@@ -4,76 +4,125 @@ import AdminPage from "./pages/AdminPage";
 import ChatPage from "./pages/ChatPage";
 import GraphPage from "./pages/GraphPage";
 
-type Route = "chat" | "graph" | "admin";
-const PATHS: Record<string, Route> = { "/": "chat", "/graph": "graph", "/admin": "admin" };
-const ROUTE_KEYS: Record<Route, string> = {
-  chat: "chat",
-  graph: "studio",
-  admin: "support",
+type StaffView = "support" | "studio";
+
+const STAFF_PATHS: Record<string, StaffView> = {
+  "/admin": "support",
+  "/admin/studio": "studio",
 };
-const routeFromPath = (): Route => PATHS[window.location.pathname] ?? "chat";
+
+function currentPath(): string {
+  const path = window.location.pathname.replace(/\/+$/, "");
+  return path || "/";
+}
+
+/** Normalize legacy and unknown paths onto the two entry points. */
+function normalizePath(path: string): string {
+  if (path === "/graph") return "/admin/studio";
+  if (path === "/chat") return "/";
+  if (path in STAFF_PATHS) return path;
+  if (path.startsWith("/admin")) return "/admin";
+  return "/";
+}
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(routeFromPath());
   const { language, setLanguage, t } = useLanguage();
+  const [path, setPath] = useState(() => normalizePath(currentPath()));
+  const staffView = STAFF_PATHS[path];
 
   useEffect(() => {
-    const sync = () => setRoute(routeFromPath());
+    if (normalizePath(currentPath()) !== currentPath()) {
+      window.history.replaceState({}, "", normalizePath(currentPath()));
+    }
+    const sync = () => setPath(normalizePath(currentPath()));
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
   }, []);
 
   useEffect(() => {
-    document.title = `Bridge-Agents · ${t(`title.${ROUTE_KEYS[route]}`)}`;
-  }, [route, language, t]);
+    const titleKey = staffView
+      ? staffView === "studio"
+        ? "title.studio"
+        : "title.support"
+      : "title.customer";
+    document.title = `Bridge-Agents · ${t(titleKey)}`;
+  }, [path, language, t, staffView]);
 
-  const go = (next: Route) => {
-    const path = next === "chat" ? "/" : `/${next}`;
-    if (window.location.pathname !== path) window.history.pushState({}, "", path);
-    setRoute(next);
+  const navigate = (target: string) => {
+    if (currentPath() !== target) window.history.pushState({}, "", target);
+    setPath(target);
   };
 
+  const languageSwitch = (
+    <div className="lang-switch" role="group" aria-label="Language">
+      <button
+        className={language === "en" ? "lang-btn active" : "lang-btn"}
+        onClick={() => setLanguage("en")}
+      >
+        EN
+      </button>
+      <button
+        className={language === "zh" ? "lang-btn active" : "lang-btn"}
+        onClick={() => setLanguage("zh")}
+      >
+        中文
+      </button>
+    </div>
+  );
+
+  if (staffView) {
+    return (
+      <div className="shell staff-shell">
+        <header className="topbar">
+          <div className="brand" onClick={() => navigate("/admin")}>
+            <span className="brand-mark" />
+            <div>
+              <strong>Bridge-Agents</strong>
+              <small>{t("app.tagline")}</small>
+            </div>
+          </div>
+          <span className="pill staff">{t("staff.badge")}</span>
+          <nav>
+            <button
+              className={staffView === "support" ? "nav-btn active" : "nav-btn"}
+              onClick={() => navigate("/admin")}
+            >
+              {t("app.support")}
+            </button>
+            <button
+              className={staffView === "studio" ? "nav-btn active" : "nav-btn"}
+              onClick={() => navigate("/admin/studio")}
+            >
+              {t("app.studio")}
+            </button>
+          </nav>
+          {languageSwitch}
+          <div className="version">v0.1.0</div>
+        </header>
+        <main>
+          {staffView === "support" && <AdminPage />}
+          {staffView === "studio" && <GraphPage />}
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="shell">
+    <div className="shell customer-shell">
       <header className="topbar">
-        <div className="brand" onClick={() => go("chat")}>
+        <div className="brand">
           <span className="brand-mark" />
           <div>
             <strong>Bridge-Agents</strong>
             <small>{t("app.tagline")}</small>
           </div>
         </div>
-        <nav>
-          {(["chat", "graph", "admin"] as Route[]).map((key) => (
-            <button
-              key={key}
-              className={route === key ? "nav-btn active" : "nav-btn"}
-              onClick={() => go(key)}
-            >
-              {t(`app.${ROUTE_KEYS[key]}`)}
-            </button>
-          ))}
-        </nav>
-        <div className="lang-switch" role="group" aria-label="Language">
-          <button
-            className={language === "en" ? "lang-btn active" : "lang-btn"}
-            onClick={() => setLanguage("en")}
-          >
-            EN
-          </button>
-          <button
-            className={language === "zh" ? "lang-btn active" : "lang-btn"}
-            onClick={() => setLanguage("zh")}
-          >
-            中文
-          </button>
-        </div>
+        <span className="customer-label muted small">{t("customer.areaLabel")}</span>
+        {languageSwitch}
         <div className="version">v0.1.0</div>
       </header>
       <main>
-        {route === "chat" && <ChatPage />}
-        {route === "graph" && <GraphPage />}
-        {route === "admin" && <AdminPage />}
+        <ChatPage />
       </main>
     </div>
   );

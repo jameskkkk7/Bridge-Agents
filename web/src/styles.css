@@ -26,6 +26,10 @@ textarea, input { font: inherit; color: inherit; }
 .nav-btn { background: transparent; border: 1px solid transparent; color: var(--muted); padding: 8px 16px; border-radius: 999px; font-size: 14px; }
 .nav-btn:hover { color: var(--text); border-color: var(--line); }
 .nav-btn.active { color: #06121c; background: linear-gradient(135deg, var(--cyan), var(--blue)); font-weight: 650; }
+.customer-shell { max-width: 900px; }
+.customer-label { margin-left: auto; letter-spacing: .3px; }
+.pill.staff { color: var(--amber); border-color: rgba(245,158,11,.45); letter-spacing: .8px; text-transform: uppercase; }
+.staff-shell .pill.staff { margin-right: 4px; }
 .lang-switch { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: #0a1120; }
 .lang-btn { border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 5px 11px; border-radius: 999px; line-height: 1; }
 .lang-btn:hover { color: var(--text); }
