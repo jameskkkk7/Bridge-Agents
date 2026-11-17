@@ -11,9 +11,13 @@ conversations, with a deterministic offline demo.
 
 ### Added
 
-- **Runtime:** LangGraph pipeline with `system`, `agent`, `tools`, `custom`,
-  `sanitize` and `review` node kinds; retry, fallback and pass-through policies;
-  Mermaid export; compile-before-save graph validation.
+- **Runtime:** LangGraph pipeline with `system`, `retrieval`, `agent`, `tools`,
+  `custom`, `sanitize` and `review` node kinds; retry, fallback and pass-through
+  policies; Mermaid export; compile-before-save graph validation.
+- **Retrieval (RAG):** heading-aware knowledge chunks, hybrid vector + lexical
+  search with citations, deterministic offline embedder (or any OpenAI-compatible
+  `/v1/embeddings` endpoint), admin status/search/upload/reindex API, and a Studio
+  knowledge panel.
 - **Review gate:** buffered streaming, rejected drafts never reach the client,
   reviewer output is not leaked, and retries are bounded.
 - **Auth:** HS256, RS256-PEM and JWKS verifiers behind one protocol; three roles
@@ -32,6 +36,6 @@ conversations, with a deterministic offline demo.
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,
   injection guard, rate limiter, settings and typed errors.
-- **Quality:** 177 offline tests, 91% combined line coverage of `app/core` and
+- **Quality:** 219 offline tests, 92% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.

@@ -146,3 +146,47 @@ A small codebase is reviewable and cannot quietly grow into a second project.
 
 **Cost:** no component library, no drag-and-drop flow editor yet, and some
 interaction patterns are implemented directly rather than reused.
+
+## 13. Retrieval is a graph node, not hidden middleware
+
+**Decision:** grounding is a `retrieval` node in the editable graph (default:
+`system → retrieval → agent → review → end`), and the same knowledge base backs
+the `search_docs` tool.
+
+**Why:** operators can see what feeds the model, move retrieval before or after
+other steps, lower the passage budget, or remove it for flows that do not need
+it. The Mermaid export makes that visible without reading code.
+
+**Cost:** every graph that wants grounding must route into the node, and the
+node adds one lookup to the request path. Graphs without it behave exactly as
+before.
+
+## 14. Hybrid retrieval with a deterministic default embedder
+
+**Decision:** the index blends cosine similarity from a hashed bag-of-terms
+embedder (60%) with TF-IDF lexical matching (40%). `RAG_EMBEDDER=openai` swaps in
+any `/v1/embeddings` endpoint without changing the rest of the pipeline.
+
+**Why:** the demo and CI must run offline, and product names, error codes and
+policy numbers are exact tokens that dense embeddings blur. The hybrid keeps
+both signals; the lexical half also makes typos and stemming differences less
+harmful, and scores are inspectable.
+
+**Cost:** hashed embeddings are weaker than a trained model on paraphrases, and
+the constant weights were tuned by hand on a small corpus. A production
+deployment should use an embeddings endpoint and may need its own weights or a
+reranker.
+
+## 15. Citations are part of the prompt contract, and the gate still applies
+
+**Decision:** retrieved passages are numbered and the agent is asked to cite
+them as `[1]`, `[2]`; the review node reviews the finished answer exactly as
+before.
+
+**Why:** an answer that cannot point at a source is hard to audit, and the gate
+must not be bypassed just because the reply looked grounded. The mock model
+follows the same contract so the demo shows a real cited answer.
+
+**Cost:** the model can still cite imprecisely, and citations add tokens to the
+prompt and answer. The admin search preview exists so reviewers can check a
+citation against the scored passages before trusting it.

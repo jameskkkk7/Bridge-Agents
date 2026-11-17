@@ -22,13 +22,13 @@ flowchart LR
     end
     subgraph runtime["Agent runtime"]
         state_graph["LangGraph state graph"]
-        nodes["system · agent · tools · custom · sanitize · review"]
+        nodes["system · retrieval · agent · tools · custom · sanitize · review"]
         gate["streaming review gate"]
     end
     subgraph deps["Model and knowledge"]
         model["OpenAI-compatible model<br/>(mock in the demo)"]
         tools["tools: time · calculate · search_docs"]
-        kb["docs/kb"]
+        kb["knowledge base: docs/kb + uploads"]
     end
     api --> auth
     api --> admin
@@ -42,6 +42,7 @@ flowchart LR
     state_graph --> nodes
     nodes --> model
     nodes --> tools
+    nodes --> kb
     kb --> tools
     nodes --> gate
     api -.-> future["Slack webhook<br/>roadmap"]
@@ -58,10 +59,13 @@ sequenceDiagram
     autonumber
     participant C as Caller
     participant R as Runtime
+    participant K as Knowledge base
     participant M as Reply model
     participant V as Reviewer
     C->>R: stream(history)
-    R->>M: agent node generates a draft
+    R->>K: retrieval node searches the knowledge base
+    K-->>R: passages with citations
+    R->>M: agent node generates a grounded draft
     M-->>R: tokens (buffered)
     R->>V: review node judges the draft
     alt accepted
@@ -77,23 +81,24 @@ sequenceDiagram
 ## Runtime
 
 The graph is data: `PUT /api/v1/admin/runtime-config/agent-graph-config` validates
-and compiles it before saving, then hot-swaps the runtime. Six node kinds cover
+and compiles it before saving, then hot-swaps the runtime. Seven node kinds cover
 the flow:
 
 | Node | What it does | Notable configuration |
 |---|---|---|
 | `system` | Injects the agent role prompt without calling a model | `system_prompt` |
+| `retrieval` | Searches the knowledge base for the last customer question and injects cited passages | `top_k`, `min_score`, `max_chars` |
 | `agent` | Generates the customer-facing reply; tools bound only when the graph routes them | — |
 | `tools` | Executes selected tools through a LangGraph tool node | `tools` allow-list |
 | `custom` | Extra model step with its own prompt (kept out of the graph state) | `system_prompt` |
 | `sanitize` | Masks configured words in message content | `banned_words`, `replacement` |
 | `review` | Gates the reply: accept, retry, fallback or pass-through | `system_prompt`, `max_retries`, `on_block`, `fallback_message` |
 
-The default graph is `system → agent → review → end` with a `block` edge back
-to the agent, so a fresh deployment can demonstrate the gate immediately. A
-tool node and `agent --tool_call--> tools` edge are added automatically when
-tools are enabled. Everything is covered by offline tests with a fake model and
-a fake compiled graph — no network calls in CI.
+The default graph is `system → retrieval → agent → review → end` with a `block`
+edge back to the agent, so a fresh deployment demonstrates both grounding and
+the gate immediately. A tool node and `agent --tool_call--> tools` edge are
+added automatically when tools are enabled. Everything is covered by offline
+tests with a fake model and a fake compiled graph — no network calls in CI.
 
 Replies are produced by the reply engine. It streams agent updates, throttles
 broadcasts to one every 80 ms, persists the final reply through a single
@@ -104,6 +109,26 @@ in-flight task so a late AI answer cannot arrive after a human has replied.
 The websocket gateway authenticates with `?token=`, limits each user to 100
 frames per minute, accepts 4000-character messages and image uploads limited
 by MIME type and `MAX_IMAGE_SIZE`.
+
+## Retrieval (RAG)
+
+The retrieval node and the `search_docs` tool share one knowledge base
+(`bridge_agents.rag`):
+
+* documents are markdown/text files in `KNOWLEDGE_DIR`, seeded on first start
+  from `DOCS_DIR` (`docs/kb` by default) and editable through the admin API;
+* each document is split by heading into citable passages with stable ids;
+* the index is hybrid: 60% cosine similarity from a deterministic hashed
+  embedder (or an OpenAI-compatible `/v1/embeddings` endpoint) and 40% TF-IDF
+  lexical match with light stemming and stopword removal;
+* a query returns the top passages; the agent receives them as a numbered
+  context block and is asked to cite them as `[1]`, `[2]`;
+* answers still pass through the review node, so grounding does not bypass the
+  policy gate.
+
+Passages are decisions, not a black box: the admin API returns the score, the
+vector and lexical components, the citation and a preview for each hit, and
+the Studio page shows the same data before a customer ever sees an answer.
 
 ## API (implemented now)
 
@@ -136,6 +161,12 @@ by MIME type and `MAX_IMAGE_SIZE`.
 | PUT | `/api/v1/admin/sessions/{session_id}/status` | Change conversation status |
 | PUT | `/api/v1/admin/sessions/{session_id}/takeover` | Enable or release human takeover |
 | GET | `/api/v1/admin/users` | User directory (ADMIN only) |
+| GET | `/api/v1/admin/knowledge/status` | Knowledge index statistics and document list |
+| GET | `/api/v1/admin/knowledge/search` | Retrieval preview with scores and citations |
+| POST | `/api/v1/admin/knowledge/reindex` | Rebuild the index from the knowledge directory |
+| GET | `/api/v1/admin/knowledge/documents` | List knowledge documents |
+| POST | `/api/v1/admin/knowledge/documents` | Upload or replace a markdown/text document |
+| DELETE | `/api/v1/admin/knowledge/documents/{name}` | Delete a document and reindex |
 | POST | `/webhook/lark` | Signed Lark event intake (disabled by default) |
 
 Admin routes accept `AGENT` and `ADMIN` tokens; the rest of the API requires a
@@ -168,6 +199,13 @@ credentials.
 | `AGENT_TOOLS_ENABLED` / `AGENT_TOOLS` | `false` / `[]` in code, enabled in the example | Binding still requires a tool route in the graph |
 | `AGENT_INJECTION_PATTERNS` | empty | Empty uses the built-in guard |
 | `WS_MAX_CONNECTIONS` | `10000` | Maximum concurrent websocket connections |
+| `KNOWLEDGE_DIR` / `DOCS_DIR` | `./data/knowledge` / `docs/kb` | Knowledge base storage and seed directory |
+| `RAG_ENABLED` | `true` | Turns retrieval off for graphs that do not need it |
+| `RAG_EMBEDDER` | `hash` | `hash` (offline, deterministic) or `openai` (`/v1/embeddings`) |
+| `RAG_EMBEDDING_MODEL` | `text-embedding-3-small` | Model name sent to the embeddings endpoint |
+| `RAG_TOP_K` / `RAG_MIN_SCORE` | `4` / `0.12` | Passages per query and the score threshold |
+| `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `900` / `120` | Passage size and overlap |
+| `RAG_MAX_CONTEXT_CHARS` | `2400` | Hard budget for the injected context block |
 | `LARK_ENABLED` / `LARK_APP_ID` / `LARK_APP_SECRET` | `false` / empty | Enable the Lark channel |
 | `LARK_ENCRYPT_KEY` / `LARK_VERIFICATION_TOKEN` | empty | Event decryption and verification token |
 | `LARK_AGENT_OPEN_IDS` | empty | Open ids allowed to run support commands |
@@ -203,6 +241,7 @@ import `bridge_agents`) with the reusable runtime:
 | `bridge_agents.auth` | HS256 / RS256-PEM / JWKS verifiers, roles and identities |
 | `bridge_agents.guard` | prompt-injection guard |
 | `bridge_agents.rate_limit` | proxy-aware client address and fixed-window limiter |
+| `bridge_agents.rag` | chunking, deterministic and OpenAI embedders, hybrid index, knowledge base |
 | `bridge_agents.config` / `.errors` | settings and typed failures |
 
 The server imports the library through thin compatibility modules, so both use
@@ -222,14 +261,14 @@ python -m venv /tmp/ba && /tmp/ba/bin/pip install dist/bridge_agents-0.1.0-py3-n
 | Page | Purpose |
 |---|---|
 | `/` | Customer chat: streaming replies, review-gate fallback, image upload, reconnect indicator |
-| `/graph` | Edit the flow JSON, save (compile-checked) or reset, and inspect the Mermaid source |
+| `/graph` | Studio: edit the flow JSON, save (compile-checked) or reset, inspect the Mermaid source, and manage the knowledge base (search preview, upload, reindex) |
 | `/admin` | Support desk: conversation list, transcript, takeover/release and close |
 
 Nginx serves the app in the demo stack and proxies `/api`, `/ws` and `/webhook`
 to the API, so the browser is same-origin. Locally the Vite dev server proxies
 those paths to `127.0.0.1:8000` (`cd web && npm install && npm run dev`).
-Front-end budget: 12 source files and 857 lines including deployment assets
-(limit: 12 files / 900 lines).
+Front-end budget: 12 source files and 1,122 lines including deployment assets
+(limit: 12 files / 1,150 lines; the knowledge panel is the recent addition).
 
 ## One-command demo stack
 
@@ -244,27 +283,29 @@ Front-end budget: 12 source files and 857 lines including deployment assets
 
 The runtime points at `http://mock-llm:8001/v1`, so a fresh clone needs no API
 key. The mock covers the normal reply, the refund promise that the review gate
-rejects, the `[[tool]]` tool-call round trip and the reviewer verdict; the
-protocol is documented in [mock/README.md](../mock/README.md). Conversations and
-images live on the named volume and survive `docker compose restart api`. Open
-`http://localhost` for the web demo and `http://localhost:8000/health` for the
-API.
+rejects, the `[[tool]]` tool-call round trip, knowledge-grounded replies and the
+reviewer verdict; its protocol — including a deterministic `/v1/embeddings`
+endpoint — is documented in [mock/README.md](../mock/README.md). The knowledge
+base is seeded into `/data/knowledge` on first start, so uploads survive a
+restart too. Conversations, images and knowledge documents live on the named
+volume and survive `docker compose restart api`. Open `http://localhost` for the
+web demo and `http://localhost:8000/health` for the API.
 
 ## Quality gates
 
 ```bash
-uv run pytest -q                                                            # 177 passed
-uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov-fail-under=70  # 91%
+uv run pytest -q                                                            # 219 passed
+uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov-fail-under=70  # 92%
 uv run ruff check .                                                         # clean
 uv run ruff format --check .                                                # clean
 uv run python scripts/check_sanitized.py                                    # exit 0
 ```
 
-Current snapshot: **177 tests** collected, **91%** combined line coverage of
+Current snapshot: **219 tests** collected, **92%** combined line coverage of
 `app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
-clean, and the repository sanitisation gate passes. The tree today is 3,368
-lines of application Python, a 1,650-line library, 3,129 lines of tests and an
-857-line web demo.
+clean, and the repository sanitisation gate passes. The tree today is 3,617
+lines of application Python, a 2,651-line library, 3,756 lines of tests and a
+1,122-line web demo.
 
 ## Design decisions
 
@@ -275,6 +316,8 @@ lines of application Python, a 1,650-line library, 3,129 lines of tests and an
 | Bind tools only when the graph routes tool calls | The model cannot emit a call that no node executes | The graph must declare the route explicitly |
 | Write a role once, on first login | Later token claims cannot silently change privileges | Role changes require an explicit admin action (roadmap) |
 | Mock model mode by default | The demo is deterministic and needs no API key | The mock must be kept in sync with the runtime contract (tests enforce it) |
+| Retrieval is a graph node, not hidden middleware | Operators can see, move or remove grounding per flow | The graph must route into the retrieval node |
+| Hybrid retrieval with a deterministic default embedder | Offline demo, exact-token matches and no model download | A real deployment should switch to an embeddings endpoint |
 
 ## Repository layout
 

@@ -29,9 +29,11 @@ reply before the customer sees it?**
 
 ## Why Bridge-Agents
 
-| 🛡 **Review before send** | 🙋 **Humans stay in control** | 🧩 **Change the flow, not the code** |
-|---|---|---|
-| A second model reviews every draft against your policy. Approved text streams to the customer; a rejected draft is replaced by your fallback and never shown. | A teammate can take over a conversation, and the AI's pending answer is cancelled — the customer gets a person, not a duplicate reply. | The conversation flow is saved configuration. Operations can rewire it, and a flow that cannot run is refused before it goes live. *(drag-and-drop editor in progress; the JSON editor is live)* |
+| 🛡 **Review before send** | 🙋 **Humans stay in control** |
+|---|---|
+| A second model reviews every draft against your policy. Approved text streams to the customer; a rejected draft is replaced by your fallback and never shown. | A teammate can take over a conversation, and the AI's pending answer is cancelled — the customer gets a person, not a duplicate reply. |
+| 📚 **Answers with sources** | 🧩 **Change the flow, not the code** |
+| Every reply is grounded in your documentation. The retriever finds the relevant passages, the assistant cites them as [1], [2], and the review gate still checks the wording. | The conversation flow is saved configuration. Operations can rewire it, and a flow that cannot run is refused before it goes live. *(drag-and-drop editor in progress; the JSON editor is live)* |
 
 Plus the boring-but-important part: **your data stays yours.** Self-hosted,
 SQLite by default, no external calls in demo mode, and roles for customers,
@@ -41,7 +43,8 @@ support staff and admins.
 
 ```mermaid
 flowchart TD
-    customer(["Customer message"]) --> assistant["AI assistant drafts a reply"]
+    customer(["Customer message"]) --> retrieve["Knowledge base returns cited passages"]
+    retrieve --> assistant["AI assistant drafts a reply"]
     assistant --> review{"Policy review"}
     review -->|approved| sent(["Reply sent to customer"])
     review -->|blocked| fallback["Safe fallback message"]
@@ -50,9 +53,10 @@ flowchart TD
     teammate --> sent
 ```
 
-1. The assistant drafts a reply.
-2. Before a single word reaches the customer, a reviewer checks it against your
-   policy — the draft is held back while this happens.
+1. The retriever finds the relevant passages in your knowledge base and the
+   assistant drafts an answer that cites them.
+2. Before a single word reaches the customer, a reviewer checks the draft
+   against your policy — the draft is held back while this happens.
 3. Approved replies stream naturally. Rejected replies become a safe,
    pre-written fallback. When a conversation needs a human, a teammate takes
    over and the AI stops.
@@ -65,14 +69,17 @@ flowchart TD
 
 The story the demo tells:
 
-1. A customer asks *"Can you guarantee a refund?"*
-2. The draft promises a refund. The review gate blocks it and the customer sees
-   a policy-safe fallback instead.
-3. A teammate takes over from the admin view, the AI stops writing, and the
+1. A customer asks *"How do I activate Widget Pro?"* — the answer cites the
+   knowledge base passage as [1].
+2. A second customer asks *"Can you guarantee a refund?"* — the draft promises
+   a refund, the review gate blocks it, and the customer sees a policy-safe
+   fallback instead.
+3. A teammate takes over from the support desk, the AI stops writing, and the
    human answers directly.
 
 Run `docker compose up --build`, open http://localhost and try the flows above
-in the live demo.
+in the live demo. Studio → Knowledge shows the retrieval index, a search
+preview and document upload.
 
 ## Try it today
 
@@ -129,6 +136,7 @@ local API. Engineering details — API, configuration, quality gates — live in
 | Built around reviewing the reply, not just generating it | ✅ review gate inside the runtime | moderation usually happens after generation |
 | Human handoff that stops the AI mid-answer | ✅ support desk takeover cancels the pending reply | depends on the product |
 | The conversation flow lives with your code and your review | ✅ configuration saved and validated | usually edited in a hosted canvas |
+| Answers grounded in your documentation | ✅ hybrid retrieval with citations and an editable knowledge base | often prompt-only or a separate add-on |
 | Works offline for demos and evaluation | ✅ one command with a mock model | often cloud-first |
 
 Low-code platforms are great for drag-and-drop prototyping. Bridge-Agents is for
@@ -145,6 +153,7 @@ is not an acceptable answer.
 | Review-gated runtime: buffering, retries, fallbacks, safe defaults | Drag-and-drop flow editor | Database migrations and deployment guides |
 | Real-time conversations: REST + WebSocket streaming | Embeddable widget | Load-test scripts and multi-tenant storage |
 | Browser demo: chat, flow editor and support desk with human takeover | — | — |
+| Grounded answers: hybrid retrieval, citations and an editable knowledge base (upload, reindex, search preview) | Reranking and per-tenant knowledge bases | — |
 | Lark channel: signed webhook, encrypted events and support commands (disabled by default) | — | — |
 | One-command Docker stack with a deterministic mock model (offline, no API key) | — | — |
 
@@ -157,6 +166,12 @@ AI may say, who can change the flow, and when a human steps in.
 **Do I need an OpenAI API key to try it?**
 No. The default mode uses a deterministic mock model, so a fresh checkout works
 offline. Live mode works with any OpenAI-compatible endpoint.
+
+**Does it answer from my own documentation?**
+Yes. The retriever indexes a knowledge directory (seeded from `docs/kb`, editable
+from the Studio page) and the assistant cites the passages it used. The default
+embedder is deterministic and offline; set `RAG_EMBEDDER=openai` to use any
+`/v1/embeddings` endpoint in production.
 
 **Can I self-host it?**
 Yes — Apache-2.0, no vendor account, SQLite by default and PostgreSQL or MySQL
@@ -190,8 +205,10 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 - [x] Human handoff that cancels the in-flight AI reply
 - [x] One-command Docker stack with the mock model (offline, no API key)
 - [x] First messaging integration: Lark webhook with signed events and agent commands
+- [x] Retrieval-augmented answers: hybrid search, citations, knowledge upload and reindex
 - [ ] Second messaging integration (Slack) and a webhook API
-- [ ] Visual flow editor and embeddable widget
+- [ ] Reranking, per-tenant knowledge bases and a visual flow editor
+- [ ] Embeddable widget
 
 ## Configuration
 
@@ -205,6 +222,8 @@ The demo needs no configuration. For real deployments the common switches are:
 | `ALLOW_DEV_LOGIN` | `false` | demo login; forced off in production |
 | `API_PORT` / `WEB_PORT` | 8000 / 80 | compose ports |
 | `LARK_*` | disabled | signed Lark webhook and support commands |
+| `KNOWLEDGE_DIR` / `DOCS_DIR` | `./data/knowledge` / `./docs/kb` | knowledge base location and seed directory |
+| `RAG_EMBEDDER` / `RAG_TOP_K` | `hash` / `4` | offline embedder or any OpenAI-compatible embeddings endpoint |
 
 Every setting is documented in `.env.example` and
 [docs/architecture.md](docs/architecture.md#configuration).
@@ -219,8 +238,8 @@ Design notes: [docs/design-decisions.md](docs/design-decisions.md).
 
 ### Use the runtime as a library
 
-The review gate, graph validation, auth verifiers, injection guard and rate
-limiter are also packaged as a standalone library (distribution
+The review gate, graph validation, knowledge retrieval, auth verifiers,
+injection guard and rate limiter are also packaged as a standalone library (distribution
 `bridge-agents`, import `bridge_agents`). It is not on PyPI yet; build it from
 this checkout:
 
