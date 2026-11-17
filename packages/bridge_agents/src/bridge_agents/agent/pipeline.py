@@ -42,7 +42,7 @@ from langgraph.prebuilt import ToolNode
 from bridge_agents.agent import AgentPipeline
 from bridge_agents.agent.prompts import DEFAULT_FALLBACK_MESSAGE, DEFAULT_REVIEW_PROMPT
 from bridge_agents.agent.tools import get_tools
-from bridge_agents.config import get_settings
+from bridge_agents.config import Settings, get_settings
 from bridge_agents.rag.format import format_context_blocks
 from bridge_agents.rag.knowledge import KnowledgeBase, get_knowledge
 
@@ -165,8 +165,9 @@ class LangGraphPipeline(AgentPipeline):
         llm: Any | None = None,
         tools: list | None = None,
         knowledge: KnowledgeBase | None = None,
+        settings: Settings | None = None,
     ) -> None:
-        self._settings = get_settings()
+        self._settings = settings or get_settings()
         if llm is None:
             from bridge_agents.agent.factory import build_chat_model
 

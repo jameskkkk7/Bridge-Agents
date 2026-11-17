@@ -32,13 +32,19 @@ __all__ = [
 
 
 async def initialize_pipeline(application: Any) -> None:
-    """Build the pipeline from the persisted graph configuration."""
+    """Build the pipeline from the persisted graph and model configuration."""
     from app.models.database import SessionLocal
+    from app.services.model_config_service import load_override, resolve_settings
     from app.services.runtime_config_service import RuntimeConfigService
 
+    base_settings = application.state.settings
     async with SessionLocal() as session:
         graph_config = await RuntimeConfigService(session).get_agent_graph_config()
-    application.state.agent_pipeline = create_pipeline(graph_config)
+        override = await load_override(session, base_settings, include_secret=True)
+    application.state.model_override = override
+    application.state.agent_pipeline = create_pipeline(
+        graph_config, settings=resolve_settings(base_settings, override)
+    )
     LOGGER.info("agent pipeline initialised from runtime configuration")
 
 

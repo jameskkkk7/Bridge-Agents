@@ -105,6 +105,10 @@ def validate_graph_config(graph_config: dict | None = None) -> str | None:
     return None
 
 
-def create_pipeline(graph_config: dict | None = None) -> LangGraphPipeline:
+def create_pipeline(
+    graph_config: dict | None = None, settings: Settings | None = None
+) -> LangGraphPipeline:
     """Create a pipeline for the given configuration (defaults when omitted)."""
-    return LangGraphPipeline(graph_config=graph_config)
+    if settings is None:
+        return LangGraphPipeline(graph_config=graph_config)
+    return LangGraphPipeline(graph_config=graph_config, settings=settings)

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { deleteJson, errorText, getJson, putJson, tokenFor, uploadFile } from "../api";
 import { useLanguage } from "../i18n";
+import SettingsPanel from "./SettingsPanel";
 
-type Panel = "flow" | "knowledge";
+type Panel = "flow" | "knowledge" | "settings";
 
 interface GraphConfig {
   nodes: unknown[];
@@ -339,11 +340,15 @@ export default function GraphPage() {
           <button className={panel === "knowledge" ? "tab active" : "tab"} onClick={() => setPanel("knowledge")}>
             {t("studio.knowledge")}
           </button>
+          <button className={panel === "settings" ? "tab active" : "tab"} onClick={() => setPanel("settings")}>
+            {t("studio.settings")}
+          </button>
         </div>
       </div>
       {error && <div className="banner error">{error}</div>}
       {token && panel === "flow" && <FlowPanel token={token} onError={setError} />}
       {token && panel === "knowledge" && <KnowledgePanel token={token} onError={setError} />}
+      {token && panel === "settings" && <SettingsPanel token={token} onError={setError} />}
     </section>
   );
 }

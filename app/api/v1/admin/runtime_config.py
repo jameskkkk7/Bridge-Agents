@@ -17,6 +17,23 @@ from app.schemas.runtime_config import (
     AgentToolInfo,
     GraphConfigSaved,
 )
+from app.schemas.runtime_settings import (
+    AgentPromptUpdate,
+    AgentPromptView,
+    ModelConfigUpdate,
+    ModelConfigView,
+)
+from app.services.agent_prompt_service import (
+    current_graph,
+    extract_prompt,
+    update_prompt,
+)
+from app.services.model_config_service import (
+    clear_override,
+    describe,
+    load_override,
+    save_override,
+)
 from app.services.runtime_config_service import RuntimeConfigService
 
 router = APIRouter()
@@ -87,3 +104,69 @@ async def reset_agent_graph_config(
     deleted = await RuntimeConfigService(db).delete_agent_graph_config()
     await reinitialize_pipeline(request.app)
     return GraphConfigSaved(saved=False, deleted=deleted)
+
+
+@router.get("/model-config", response_model=ModelConfigView)
+async def read_model_config(
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelConfigView:
+    """Return the effective model configuration (never the API key)."""
+    settings = request.app.state.settings
+    override = await load_override(db, settings)
+    return ModelConfigView(**describe(settings, override))
+
+
+@router.put("/model-config", response_model=ModelConfigView)
+async def save_model_config(
+    payload: ModelConfigUpdate,
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelConfigView:
+    """Persist a model override and hot-swap the running pipeline."""
+    settings = request.app.state.settings
+    await save_override(db, settings, payload)
+    await reinitialize_pipeline(request.app)
+    override = await load_override(db, settings)
+    return ModelConfigView(**describe(settings, override))
+
+
+@router.delete("/model-config", response_model=ModelConfigView)
+async def reset_model_config(
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelConfigView:
+    """Drop the override and fall back to environment settings."""
+    settings = request.app.state.settings
+    await clear_override(db)
+    await reinitialize_pipeline(request.app)
+    return ModelConfigView(**describe(settings, None))
+
+
+@router.get("/agent-prompt", response_model=AgentPromptView)
+async def read_agent_prompt(
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> AgentPromptView:
+    """Return the agent role prompt and its source."""
+    graph, saved = await current_graph(db, request.app)
+    return AgentPromptView(
+        system_prompt=extract_prompt(graph),
+        source="saved_graph" if saved else "default_graph",
+    )
+
+
+@router.put("/agent-prompt", response_model=AgentPromptView)
+async def save_agent_prompt(
+    payload: AgentPromptUpdate,
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> AgentPromptView:
+    """Replace the role prompt, persist and activate the graph."""
+    prompt = await update_prompt(db, request.app, payload.system_prompt)
+    return AgentPromptView(system_prompt=prompt, source="saved_graph")
