@@ -62,6 +62,10 @@ async def deliver_agent_reply(
 
     await connection_manager.broadcast_to_session(session_id, payload)
 
+    from app.services.channel_mirror import schedule_channel_mirror
+
+    schedule_channel_mirror(session_id, "Assistant", content)
+
     if channel_sender is not None:
         try:
             await channel_sender(payload)

@@ -35,6 +35,7 @@ from app.models.channel import SessionChannel
 from app.models.session import Session
 from app.services.channels.base import ChannelAdapter
 from app.services.session_service import SessionService
+from app.services.staff_reply import send_staff_message
 from app.services.takeover_service import apply_takeover
 
 LOGGER = logging.getLogger(__name__)
@@ -52,6 +53,11 @@ AGENT_COMMAND_HELP = (
 
 NO_SESSION_TEXT = (
     "No conversation is linked to this chat yet. Run /takeover <session-id> to link one."
+)
+
+FREE_TEXT_HINT = (
+    "Take over the conversation first with /takeover <session-id>, then send "
+    "your reply as plain text."
 )
 
 _COMMAND_ALIASES: dict[str, str] = {
@@ -350,13 +356,16 @@ async def _session_for_command(
 
 
 async def handle_agent_message(adapter: LarkAdapter, db: AsyncSession, message: LarkMessage) -> str:
-    """Execute one agent command and send its reply.
+    """Execute one agent command or deliver a free-text reply to the customer.
 
-    Returns the reply text (also useful in tests). Unknown commands and
-    non-command text get the command help, which keeps the channel friendly
-    without silently interpreting free text as a customer-facing reply.
+    Returns the reply text (also useful in tests). Slash commands run the
+    support actions; plain text from a whitelisted agent becomes a real human
+    reply in the bound conversation, but only while takeover is active. Unknown
+    slash commands get the help text instead of being sent to a customer.
     """
     command = parse_command(message.text, adapter.command_list)
+    if command is None and not message.text.strip().startswith("/"):
+        return await _handle_free_text(adapter, db, message)
     if command is None or command == "help":
         reply = adapter.help_text
         await adapter.send_text(message.chat_id, reply)
@@ -389,6 +398,34 @@ async def handle_agent_message(adapter: LarkAdapter, db: AsyncSession, message: 
         else f'Takeover released for "{session.title}" ({session.id[:8]}). '
         "The assistant answers again."
     )
+    await adapter.send_text(message.chat_id, reply)
+    return reply
+
+
+async def _handle_free_text(adapter: LarkAdapter, db: AsyncSession, message: LarkMessage) -> str:
+    """Deliver a plain-text agent message to the bound conversation."""
+    session_id = await _mapped_session_id(db, message.chat_id)
+    if not session_id:
+        await adapter.send_text(message.chat_id, NO_SESSION_TEXT)
+        return NO_SESSION_TEXT
+    session = await SessionService(db).get(session_id)
+    if session is None:
+        await adapter.send_text(message.chat_id, NO_SESSION_TEXT)
+        return NO_SESSION_TEXT
+    if not session.human_takeover:
+        await adapter.send_text(message.chat_id, FREE_TEXT_HINT)
+        return FREE_TEXT_HINT
+
+    payload = await send_staff_message(
+        db,
+        session_id=session.id,
+        actor_id=agent_actor_id(message.open_id),
+        content=message.text.strip(),
+    )
+    if payload is None:
+        await adapter.send_text(message.chat_id, NO_SESSION_TEXT)
+        return NO_SESSION_TEXT
+    reply = f'Delivered to the customer in "{session.title}".'
     await adapter.send_text(message.chat_id, reply)
     return reply
 

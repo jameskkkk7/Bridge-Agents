@@ -15,14 +15,23 @@ from app.models.channel import SessionChannel
 from app.models.message import Message, MessageType, SenderType
 from app.services.channels.lark import (
     AGENT_COMMAND_HELP,
+    FREE_TEXT_HINT,
+    NO_SESSION_TEXT,
     LarkAdapter,
     LarkCrypto,
     LarkMessage,
+    agent_actor_id,
+    handle_agent_message,
     parse_command,
     sign_payload,
     verify_signature,
 )
-from tests.helpers import add_message, create_session, create_user
+from tests.helpers import (
+    RecordingBroadcasts,
+    add_message,
+    create_session,
+    create_user,
+)
 
 ENCRYPT_KEY = "unit-test-encrypt-key"
 TIMESTAMP = "1700000000"
@@ -335,3 +344,145 @@ class TestWebhook:
         assert release.status_code == 200
         await db_session.refresh(session)
         assert session.human_takeover is False
+
+
+class TestFreeTextReplies:
+    """Plain-text messages from a whitelisted agent reach the customer."""
+
+    def _adapter(self) -> tuple[LarkAdapter, list[tuple[str, str]]]:
+        adapter = LarkAdapter(make_settings())
+        sent: list[tuple[str, str]] = []
+
+        async def fake_send(self, chat_id: str, text: str) -> bool:
+            sent.append((chat_id, text))
+            return True
+
+        adapter.send_text = fake_send.__get__(adapter, LarkAdapter)  # type: ignore[method-assign]
+        return adapter, sent
+
+    async def test_free_text_without_binding_gets_the_link_hint(self, db_session) -> None:
+        adapter, sent = self._adapter()
+        reply = await handle_agent_message(
+            adapter,
+            db_session,
+            LarkMessage(chat_id="oc_demo", open_id="ou_agent", text="Hello customer"),
+        )
+        assert reply == NO_SESSION_TEXT
+        assert sent == [("oc_demo", NO_SESSION_TEXT)]
+
+    async def test_free_text_requires_takeover_first(self, db_session) -> None:
+        customer = await create_user(db_session, "lark-free-text@example.test")
+        session = await create_session(db_session, customer, "Free text target")
+        adapter, sent = self._adapter()
+        bound = await handle_agent_message(
+            adapter,
+            db_session,
+            LarkMessage(chat_id="oc_demo", open_id="ou_agent", text=f"/takeover {session.id}"),
+        )
+        assert "Takeover enabled" in bound
+
+        await handle_agent_message(
+            adapter,
+            db_session,
+            LarkMessage(chat_id="oc_demo", open_id="ou_agent", text="/release"),
+        )
+        reply = await handle_agent_message(
+            adapter,
+            db_session,
+            LarkMessage(chat_id="oc_demo", open_id="ou_agent", text="Are you there?"),
+        )
+        assert reply == FREE_TEXT_HINT
+        assert sent[-1] == ("oc_demo", FREE_TEXT_HINT)
+
+    async def test_free_text_after_takeover_becomes_a_customer_visible_message(
+        self, db_session, monkeypatch
+    ) -> None:
+        customer = await create_user(db_session, "lark-free-text-2@example.test")
+        session = await create_session(db_session, customer, "Human reply target")
+        adapter, sent = self._adapter()
+        await handle_agent_message(
+            adapter,
+            db_session,
+            LarkMessage(chat_id="oc_demo", open_id="ou_agent", text=f"/takeover {session.id}"),
+        )
+
+        with RecordingBroadcasts(monkeypatch) as broadcasts:
+            reply = await handle_agent_message(
+                adapter,
+                db_session,
+                LarkMessage(
+                    chat_id="oc_demo",
+                    open_id="ou_agent",
+                    text="Your refund was approved today.",
+                ),
+            )
+
+        assert reply.startswith("Delivered to the customer")
+        stored = (
+            (
+                await db_session.execute(
+                    select(Message).where(
+                        Message.session_id == session.id,
+                        Message.sender_type == SenderType.AGENT,
+                        Message.message_type == MessageType.TEXT,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert [message.content for message in stored] == ["Your refund was approved today."]
+        assert stored[0].sender_id == agent_actor_id("ou_agent")
+        delivered = broadcasts.of_type("message")
+        assert delivered and delivered[0]["content"] == "Your refund was approved today."
+        assert sent[-1] == (
+            "oc_demo",
+            'Delivered to the customer in "Human reply target".',
+        )
+
+    async def test_unknown_slash_command_still_gets_help(self, db_session) -> None:
+        adapter, sent = self._adapter()
+        reply = await handle_agent_message(
+            adapter,
+            db_session,
+            LarkMessage(chat_id="oc_demo", open_id="ou_agent", text="/reboot"),
+        )
+        assert reply == AGENT_COMMAND_HELP
+        assert sent == [("oc_demo", AGENT_COMMAND_HELP)]
+
+    async def test_webhook_delivers_free_text_to_the_customer(
+        self, app, client, db_session, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(app.state, "settings", make_settings())
+        sent: list[tuple[str, str]] = []
+
+        async def fake_send(self, chat_id: str, text: str) -> bool:
+            sent.append((chat_id, text))
+            return True
+
+        monkeypatch.setattr(LarkAdapter, "send_text", fake_send)
+        customer = await create_user(db_session, "lark-webhook-reply@example.test")
+        session = await create_session(db_session, customer, "Webhook reply target")
+
+        bound = await post_event(client, text_event(f"/takeover {session.id}"))
+        assert bound.status_code == 200
+
+        response = await post_event(client, text_event("This is a human reply sent from Lark."))
+        assert response.status_code == 200
+        assert response.json() == {"code": 0}
+
+        stored = (
+            (
+                await db_session.execute(
+                    select(Message).where(
+                        Message.session_id == session.id,
+                        Message.sender_type == SenderType.AGENT,
+                        Message.message_type == MessageType.TEXT,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert [message.content for message in stored] == ["This is a human reply sent from Lark."]
+        assert any("Delivered to the customer" in text for _, text in sent)

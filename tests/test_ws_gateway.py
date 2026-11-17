@@ -12,6 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 from app.models.database import SessionLocal
 from app.models.message import Message
 from app.models.user import Role
+from app.services import channel_mirror
 from app.ws.gateway import connection_manager
 from tests.helpers import StubPipeline, create_session, create_user, make_token
 
@@ -186,3 +187,56 @@ async def test_ping_is_answered_without_rate_limiting(app, db_session) -> None:
     finally:
         connection_manager.allow_message = original
     assert reply == {"type": "pong"}
+
+
+async def test_messages_are_mirrored_to_the_bound_channel(app, db_session, monkeypatch) -> None:
+    owner, session, token, _ = await _setup(db_session)
+    app.state.agent_pipeline = StubPipeline("")
+    recorded: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        channel_mirror,
+        "schedule_channel_mirror",
+        lambda session_id, label, content: recorded.append((session_id, label, content)),
+    )
+
+    def scenario() -> None:
+        client = TestClient(app)
+        with client.websocket_connect(f"/ws/v1/chat?token={token}") as ws:
+            ws.receive_json()
+            ws.send_json({"type": "join", "session_id": session.id})
+            ws.receive_json()
+            ws.send_json({"type": "message", "session_id": session.id, "content": "hello"})
+            while True:
+                if ws.receive_json().get("type") == "stream_end":
+                    break
+        time.sleep(0.05)
+
+    await asyncio.to_thread(scenario)
+    assert (session.id, "Customer", "hello") in recorded
+
+
+async def test_staff_messages_are_mirrored_as_support(app, db_session, monkeypatch) -> None:
+    _, session, _, _ = await _setup(db_session)
+    staff = await create_user(db_session, "ws-mirror-staff@example.test", Role.AGENT)
+    staff_token = make_token(staff.id, "AGENT")
+    recorded: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        channel_mirror,
+        "schedule_channel_mirror",
+        lambda session_id, label, content: recorded.append((session_id, label, content)),
+    )
+
+    def scenario() -> None:
+        client = TestClient(app)
+        with client.websocket_connect(f"/ws/v1/chat?token={staff_token}") as ws:
+            ws.receive_json()
+            ws.send_json({"type": "join", "session_id": session.id})
+            ws.receive_json()
+            ws.send_json({"type": "message", "session_id": session.id, "content": "on it"})
+            while True:
+                event = ws.receive_json()
+                if event.get("type") == "message" and event.get("content") == "on it":
+                    break
+
+    await asyncio.to_thread(scenario)
+    assert (session.id, "Support", "on it") in recorded

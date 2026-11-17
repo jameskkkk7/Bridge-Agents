@@ -190,6 +190,10 @@ async def _handle_message(websocket: WebSocket, application, user: User, data: d
         return
 
     await connection_manager.broadcast_to_session(session_id, _message_payload(message))
+    label = "Customer" if sender_type is SenderType.USER else "Support"
+    from app.services.channel_mirror import schedule_channel_mirror
+
+    schedule_channel_mirror(session_id, label, stripped)
     if sender_type is SenderType.USER:
         start_reply(application, session_id, stripped)
 
@@ -255,6 +259,9 @@ async def _handle_image(websocket: WebSocket, application, user: User, data: dic
         "created_at": message.created_at.isoformat() if message.created_at else None,
     }
     await connection_manager.broadcast_to_session(session_id, image_event)
+    from app.services.channel_mirror import schedule_channel_mirror
+
+    schedule_channel_mirror(session_id, "Customer", "[image]")
 
 
 async def _handle_connection(websocket: WebSocket, application, user: User) -> None:
