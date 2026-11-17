@@ -33,7 +33,7 @@ export default function App() {
           </div>
         </div>
         <nav>
-          {([["chat", "Chat"], ["graph", "Flow"], ["admin", "Support"]] as [Route, string][]).map(([key, label]) => (
+          {([["chat", "Chat"], ["graph", "Studio"], ["admin", "Support"]] as [Route, string][]).map(([key, label]) => (
             <button key={key} className={route === key ? "nav-btn active" : "nav-btn"} onClick={() => go(key)}>
               {label}
             </button>

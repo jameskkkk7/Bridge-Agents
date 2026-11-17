@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import os
 import tempfile
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 TMP_DIR = Path(tempfile.mkdtemp(prefix="bridge-agents-tests-"))
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 os.environ.update(
     {
@@ -19,6 +20,9 @@ os.environ.update(
         "LOG_LEVEL": "WARNING",
         "DATABASE_URL": f"sqlite+aiosqlite:///{(TMP_DIR / 'test.db').as_posix()}",
         "STORAGE_DIR": str(TMP_DIR / "uploads"),
+        "DOCS_DIR": str(REPO_ROOT / "docs" / "kb"),
+        "KNOWLEDGE_DIR": str(TMP_DIR / "knowledge"),
+        "RAG_EMBEDDER": "hash",
         "ALLOWED_HOSTS": "*",
         "AUTH_VERIFIER": "hs256",
         "JWT_SECRET": "test-secret-key-for-pytest-only-32b",
@@ -54,6 +58,16 @@ async def _database() -> AsyncIterator[None]:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.drop_all)
     await dispose_engine()
+
+
+@pytest.fixture(autouse=True)
+def _knowledge() -> Iterator[None]:
+    """Give every test a freshly seeded, isolated knowledge base."""
+    from bridge_agents.rag.knowledge import reset_knowledge
+
+    reset_knowledge()
+    yield
+    reset_knowledge()
 
 
 @pytest.fixture

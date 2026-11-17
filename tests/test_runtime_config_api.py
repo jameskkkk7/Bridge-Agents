@@ -38,7 +38,7 @@ async def test_agent_reads_the_default_graph(client: AsyncClient) -> None:
     assert [node["id"] for node in body["nodes"]][:3] == [
         "__start__",
         "system_node",
-        "agent_node",
+        "retrieval_node",
     ]
     assert any(node["type"] == "review" for node in body["nodes"])
 

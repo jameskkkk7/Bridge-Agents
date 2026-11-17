@@ -142,10 +142,18 @@ def test_validate_graph_config_requires_a_system_node() -> None:
 def test_default_graph_includes_the_review_gate() -> None:
     pipeline = _pipeline()
     node_ids = [node["id"] for node in pipeline.get_graph_config()["nodes"]]
-    assert node_ids == ["__start__", "system_node", "agent_node", "review_node", "__end__"]
+    assert node_ids == [
+        "__start__",
+        "system_node",
+        "retrieval_node",
+        "agent_node",
+        "review_node",
+        "__end__",
+    ]
     assert pipeline._role_prompt == DEFAULT_SYSTEM_PROMPT
     assert pipeline._review_node_ids == {"review_node"}
     assert pipeline._reply_node_ids == {"agent_node"}
+    assert pipeline._retrieval_node_ids == {"retrieval_node"}
     diagram = pipeline.get_mermaid_diagram()
     assert "flowchart" in diagram or "graph TD" in diagram
 

@@ -30,13 +30,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        import asyncio
+
+        from app.services.knowledge_service import initialize_knowledge
+
         setup_logging(config)
         await init_db()
+        await asyncio.to_thread(initialize_knowledge, application)
         await initialize_pipeline(application)
         yield
         from app.services.reply_engine import cancel_all_replies
 
         cancel_all_replies()
+        knowledge = getattr(application.state, "knowledge", None)
+        if knowledge is not None:
+            knowledge.close()
         pipeline = getattr(application.state, "agent_pipeline", None)
         if pipeline is not None:
             await pipeline.close()

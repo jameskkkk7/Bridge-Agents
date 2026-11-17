@@ -38,8 +38,19 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/bridge-agents.db"
     storage_dir: str = "./data/uploads"
     docs_dir: str = ""
+    knowledge_dir: str = "./data/knowledge"
     default_timezone: str = "UTC"
     max_image_size: int = 10 * 1024 * 1024
+
+    # Retrieval-augmented generation
+    rag_enabled: bool = True
+    rag_embedder: str = "hash"
+    rag_embedding_model: str = "text-embedding-3-small"
+    rag_top_k: int = 4
+    rag_min_score: float = 0.12
+    rag_chunk_size: int = 900
+    rag_chunk_overlap: int = 120
+    rag_max_context_chars: int = 2400
 
     # Authentication
     auth_verifier: str = "hs256"

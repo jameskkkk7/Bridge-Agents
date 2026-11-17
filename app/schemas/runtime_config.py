@@ -6,7 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-NodeKind = Literal["start", "end", "agent", "tools", "custom", "sanitize", "review", "system"]
+NodeKind = Literal[
+    "start", "end", "agent", "tools", "custom", "sanitize", "review", "system", "retrieval"
+]
 
 
 class GraphNode(BaseModel):

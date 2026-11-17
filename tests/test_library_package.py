@@ -41,9 +41,10 @@ def test_auth_tokens_verify_through_the_library_verifier() -> None:
 
 def test_graph_helpers_are_importable_from_the_library() -> None:
     graph = default_graph_config()
-    assert len(graph["nodes"]) == 5
+    assert len(graph["nodes"]) == 6
     assert validate_graph_config(graph) is None
     assert any(node["type"] == "system" for node in graph["nodes"])
+    assert any(node["type"] == "retrieval" for node in graph["nodes"])
     assert DEFAULT_SYSTEM_PROMPT.startswith("You are Bridge-Agents")
 
 

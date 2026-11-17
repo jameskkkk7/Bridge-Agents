@@ -6,13 +6,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-WORKDIR /srv/mock
+WORKDIR /srv
 
 RUN groupadd --gid 1000 app \
     && useradd --uid 1000 --gid 1000 --create-home app
 RUN pip install "fastapi>=0.115" "uvicorn>=0.30"
 
-COPY main.py ./
+# Copied as a package so `mock.main` and `mock.grounding` resolve like they do
+# in the repository and in tests.
+COPY . ./mock
 RUN chown -R app:app /srv/mock
 USER app
 
@@ -20,4 +22,4 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "mock.main:app", "--host", "0.0.0.0", "--port", "8001"]

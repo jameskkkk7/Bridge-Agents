@@ -1,12 +1,15 @@
 """Deterministic OpenAI-compatible mock model used by the demo.
 
-The service speaks the two shapes the runtime needs:
+The service speaks the shapes the runtime needs:
 
 * ``POST /v1/chat/completions`` with ``stream`` false or true (SSE);
-* ordinary replies, tool-call replies, and review verdicts.
+* ``POST /v1/embeddings`` with deterministic hashed vectors, so the
+  OpenAI-embedding retrieval path can be exercised without a real provider;
+* ordinary replies, tool-call replies, review verdicts and knowledge-grounded
+  replies.
 
 Behaviour is fully deterministic so screenshots and tests are reproducible.
-Four scenarios are recognised from the request:
+Five scenarios are recognised from the request:
 
 * a review request (system prompt contains the reviewer marker) answers with a
   JSON verdict and blocks drafts that contain ``guarantee`` or ``[[blocked]]``;
@@ -14,6 +17,8 @@ Four scenarios are recognised from the request:
   tool call and then summarises the tool result;
 * a user message containing ``guarantee`` produces a reply that promises a
   refund, which the review gate then rejects;
+* a request carrying retrieved knowledge answers with a citation taken from the
+  first retrieved passage;
 * everything else produces a short canned answer in two or three segments.
 """
 
@@ -28,6 +33,12 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse
+
+from mock.grounding import (
+    EMBEDDING_DIMENSION,
+    embedding_vector,
+    knowledge_segments,
+)
 
 REVIEW_MARKER = "You are a content reviewer"
 TOOL_NAME = "get_current_time"
@@ -184,6 +195,9 @@ def _reply_segments(messages: list[dict]) -> list[str]:
         return list(BLOCKED_SEGMENTS)
     if "guarantee" in user_text.lower():
         return list(GUARANTEE_SEGMENTS)
+    knowledge = knowledge_segments(messages, _content_text)
+    if knowledge:
+        return knowledge
     return list(NORMAL_SEGMENTS)
 
 
@@ -200,8 +214,34 @@ async def health() -> dict[str, str]:
 async def models() -> dict:
     return {
         "object": "list",
-        "data": [{"id": "mock-model", "object": "model", "owned_by": "bridge-agents"}],
+        "data": [
+            {"id": "mock-model", "object": "model", "owned_by": "bridge-agents"},
+            {"id": "mock-embedding", "object": "model", "owned_by": "bridge-agents"},
+        ],
     }
+
+
+@app.post("/v1/embeddings")
+async def embeddings(payload: dict[str, Any]) -> JSONResponse:
+    """Return deterministic embeddings for the requested input text(s)."""
+    raw_input = payload.get("input")
+    texts = raw_input if isinstance(raw_input, list) else [raw_input or ""]
+    data = [
+        {
+            "object": "embedding",
+            "index": position,
+            "embedding": embedding_vector(str(text), EMBEDDING_DIMENSION),
+        }
+        for position, text in enumerate(texts)
+    ]
+    return JSONResponse(
+        {
+            "object": "list",
+            "data": data,
+            "model": payload.get("model") or "mock-embedding",
+            "usage": {"prompt_tokens": 0, "total_tokens": 0},
+        }
+    )
 
 
 @app.post("/v1/chat/completions")

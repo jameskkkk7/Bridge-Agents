@@ -16,6 +16,8 @@ RUN groupadd --gid 1000 app \
 COPY pyproject.toml README.md LICENSE ./
 COPY packages ./packages
 COPY app ./app
+# bundled knowledge documents seed the knowledge base on first start
+COPY docs/kb ./docs/kb
 RUN pip install ./packages/bridge_agents .
 
 RUN chown -R app:app /srv/bridge-agents

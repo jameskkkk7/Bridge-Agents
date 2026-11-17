@@ -124,3 +124,57 @@ async def test_tool_call_flow(client) -> None:
 async def test_tool_call_is_also_streamable(client) -> None:
     response = await _chat(client, [{"role": "user", "content": "[[tool]] time?"}], stream=True)
     assert _sse_text(response.text) == "get_current_time"
+
+
+async def test_embeddings_are_deterministic(client) -> None:
+    payload = {"model": "mock-embedding", "input": ["activate widget", "refund policy"]}
+    first = await client.post("/v1/embeddings", json=payload)
+    second = await client.post("/v1/embeddings", json=payload)
+    assert first.status_code == 200
+    assert first.json() == second.json()
+    data = first.json()["data"]
+    assert [item["index"] for item in data] == [0, 1]
+    vector = data[0]["embedding"]
+    assert len(vector) == 256
+    norm = sum(value * value for value in vector) ** 0.5
+    assert abs(norm - 1.0) < 1e-3
+
+
+async def test_embeddings_accept_a_single_string(client) -> None:
+    response = await client.post("/v1/embeddings", json={"input": "activate widget"})
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == 1
+
+
+async def test_knowledge_context_produces_a_cited_answer(client) -> None:
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Retrieved knowledge for this question. Cite sources like [1].\n\n"
+                "[1] Widget Pro — Activation\n"
+                "Activate Widget Pro from Settings → Billing → Activate and confirm "
+                "the licence key."
+            ),
+        },
+        {"role": "user", "content": "How do I activate Widget Pro?"},
+    ]
+    response = await _chat(client, messages)
+    content = response.json()["choices"][0]["message"]["content"]
+    assert "According to the documentation (Widget Pro — Activation)" in content
+    assert "[1]" in content
+    assert "Settings" in content
+
+
+async def test_guarantee_scenario_wins_over_knowledge_context(client) -> None:
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Retrieved knowledge for this question.\n\n[1] Refunds\nRefunds follow policy."
+            ),
+        },
+        {"role": "user", "content": "Can you guarantee a refund?"},
+    ]
+    response = await _chat(client, messages)
+    assert response.json()["choices"][0]["message"]["content"] == "".join(GUARANTEE_SEGMENTS)

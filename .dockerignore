@@ -21,7 +21,9 @@ uploads
 *.key
 *.crt
 scripts/.deny.local
-docs
+# keep the bundled knowledge documents in the image
+docs/*
+!docs/kb
 tests
 mock
 web

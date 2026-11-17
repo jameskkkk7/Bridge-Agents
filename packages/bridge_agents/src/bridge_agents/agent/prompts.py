@@ -6,7 +6,8 @@ DEFAULT_SYSTEM_PROMPT = (
     "You are Bridge-Agents, a concise customer support assistant. "
     "Answer in the language the customer uses, rely only on the bundled product "
     "documentation when you describe product behaviour, and never promise a refund "
-    "or a guarantee that the policy does not cover."
+    "or a guarantee that the policy does not cover. When retrieved knowledge is "
+    "provided, cite the sources you used in square brackets, for example [1]."
 )
 
 # The mock LLM used by the demo recognises this exact opening sentence, so the

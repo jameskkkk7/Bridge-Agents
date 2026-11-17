@@ -1,10 +1,11 @@
 """Graph-driven agent runtime built on LangGraph.
 
 The graph is described by JSON (nodes plus edges) and can be replaced at
-runtime through the admin API. Six node kinds are supported: ``system`` (inject
-a role prompt), ``agent`` (the reply model), ``tools`` (execute tool calls),
-``custom`` (an extra model step with its own prompt), ``sanitize`` (mask banned
-words) and ``review`` (gate the reply before it reaches the customer).
+runtime through the admin API. Seven node kinds are supported: ``system``
+(inject a role prompt), ``retrieval`` (look up knowledge base passages),
+``agent`` (the reply model), ``tools`` (execute tool calls), ``custom`` (an
+extra model step with its own prompt), ``sanitize`` (mask banned words) and
+``review`` (gate the reply before it reaches the customer).
 
 Two built-in safety properties drive the design:
 
@@ -18,6 +19,7 @@ The graph is compiled without a checkpointer: conversation history is supplied
 by the caller on every turn.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -41,18 +43,24 @@ from bridge_agents.agent import AgentPipeline
 from bridge_agents.agent.prompts import DEFAULT_FALLBACK_MESSAGE, DEFAULT_REVIEW_PROMPT
 from bridge_agents.agent.tools import get_tools
 from bridge_agents.config import get_settings
+from bridge_agents.rag.format import format_context_blocks
+from bridge_agents.rag.knowledge import KnowledgeBase, get_knowledge
 
 LOGGER = logging.getLogger(__name__)
 
 _IMAGE_PLACEHOLDER = "[image]"
 _REVIEW_NODE_KINDS = frozenset({"review"})
 _REPLY_NODE_KINDS = frozenset({"agent", "custom"})
+_RETRIEVAL_NODE_KINDS = frozenset({"retrieval"})
+_CONTEXT_MESSAGE_ID = "retrieval-context"
 
 
 class _GraphState(TypedDict):
     """Internal LangGraph state; messages use the add_messages reducer."""
 
     messages: Annotated[list, add_messages]
+    retrieved: list[dict]
+    retrieved_context: str
 
 
 def _first_system_prompt(graph_config: dict) -> str:
@@ -64,6 +72,44 @@ def _first_system_prompt(graph_config: dict) -> str:
         if prompt.strip():
             return prompt.strip()
     return ""
+
+
+def _int_setting(value: Any, fallback: int, *, minimum: int = 1) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = fallback
+    return max(minimum, parsed)
+
+
+def _float_setting(value: Any, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _inject_retrieval_context(messages: list, context: str) -> list:
+    """Insert (or refresh) the retrieved-knowledge system message.
+
+    A stable message id keeps retries from stacking duplicate context blocks:
+    LangGraph's ``add_messages`` reducer replaces a message with the same id.
+    The context is placed after any leading role prompt so the model reads its
+    role first and the retrieved evidence second.
+    """
+    if not context:
+        return messages
+    context_message = SystemMessage(content=context, id=_CONTEXT_MESSAGE_ID)
+    for index, message in enumerate(messages):
+        if getattr(message, "id", None) == _CONTEXT_MESSAGE_ID:
+            return messages[:index] + [context_message] + messages[index + 1 :]
+    insert_at = 0
+    for index, message in enumerate(messages):
+        if getattr(message, "type", "") == "system":
+            insert_at = index + 1
+        else:
+            break
+    return messages[:insert_at] + [context_message] + messages[insert_at:]
 
 
 def _parse_verdict(content: Any) -> bool:
@@ -118,6 +164,7 @@ class LangGraphPipeline(AgentPipeline):
         *,
         llm: Any | None = None,
         tools: list | None = None,
+        knowledge: KnowledgeBase | None = None,
     ) -> None:
         self._settings = get_settings()
         if llm is None:
@@ -127,6 +174,7 @@ class LangGraphPipeline(AgentPipeline):
         self._chat_model = llm
         self._tools = list(tools) if tools is not None else get_tools()
         self._tool_runner = ToolNode(self._tools) if self._tools else None
+        self._knowledge = knowledge
         if graph_config is None:
             from bridge_agents.agent.factory import default_graph_config
 
@@ -140,6 +188,9 @@ class LangGraphPipeline(AgentPipeline):
         }
         self._review_node_ids = {
             node["id"] for node in self._nodes.values() if node["type"] in _REVIEW_NODE_KINDS
+        }
+        self._retrieval_node_ids = {
+            node["id"] for node in self._nodes.values() if node["type"] in _RETRIEVAL_NODE_KINDS
         }
         self._compiled = self._assemble().compile()
         LOGGER.info(
@@ -192,6 +243,8 @@ class LangGraphPipeline(AgentPipeline):
         config = node.get("config", {}) or {}
         if node_type == "agent":
             return self._agent_node
+        if node_type == "retrieval":
+            return self._make_retrieval_node(config)
         if node_type == "tools":
             return self._make_tool_node(config) or self._noop_node
         if node_type == "custom":
@@ -207,6 +260,60 @@ class LangGraphPipeline(AgentPipeline):
     @staticmethod
     def _noop_node(state: _GraphState) -> dict:
         return {}
+
+    def _knowledge_base(self) -> KnowledgeBase | None:
+        """Return the knowledge base, or None when retrieval is turned off."""
+        if not self._settings.rag_enabled:
+            return None
+        if self._knowledge is None:
+            self._knowledge = get_knowledge()
+        return self._knowledge
+
+    @staticmethod
+    def _last_question(messages: list) -> str:
+        """Return the most recent customer text from the graph messages."""
+        for message in reversed(messages):
+            if getattr(message, "type", "") != "human":
+                continue
+            content = getattr(message, "content", "")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                return " ".join(
+                    str(part.get("text", ""))
+                    for part in content
+                    if isinstance(part, dict) and part.get("type") == "text"
+                )
+        return ""
+
+    def _make_retrieval_node(self, config: dict):
+        """Create a node that looks up knowledge passages for the last question."""
+        top_k = _int_setting(config.get("top_k"), self._settings.rag_top_k, minimum=1)
+        min_score = _float_setting(config.get("min_score"), self._settings.rag_min_score)
+        max_chars = _int_setting(
+            config.get("max_chars"), self._settings.rag_max_context_chars, minimum=200
+        )
+
+        async def retrieval_node(state: _GraphState) -> dict:
+            question = self._last_question(state.get("messages", []))
+            if not question.strip():
+                return {"retrieved": [], "retrieved_context": ""}
+            knowledge = self._knowledge_base()
+            if knowledge is None:
+                return {"retrieved": [], "retrieved_context": ""}
+            try:
+                hits = await asyncio.to_thread(
+                    knowledge.search, question, top_k=top_k, min_score=min_score
+                )
+            except Exception:
+                LOGGER.exception("retrieval failed; continuing without knowledge context")
+                return {"retrieved": [], "retrieved_context": ""}
+            entries = [hit.chunk.as_dict() for hit in hits]
+            context = format_context_blocks(entries, max_chars=max_chars)
+            LOGGER.info("retrieval matched %d passage(s) for the question", len(entries))
+            return {"retrieved": entries, "retrieved_context": context}
+
+        return retrieval_node
 
     def _make_tool_node(self, config: dict) -> ToolNode | None:
         """Build a ToolNode restricted to the tools selected by the node."""
@@ -405,7 +512,9 @@ class LangGraphPipeline(AgentPipeline):
 
     async def _agent_node(self, state: _GraphState, config: RunnableConfig | None = None) -> dict:
         """Call the reply model, binding tools only when the graph routes them."""
-        messages = list(state.get("messages", []))
+        messages = _inject_retrieval_context(
+            list(state.get("messages", [])), state.get("retrieved_context") or ""
+        )
         try:
             model = (
                 self._chat_model.bind_tools(self._bound_tools)
@@ -530,6 +639,14 @@ class LangGraphPipeline(AgentPipeline):
                 continue
 
             for node_name, node_output in (payload or {}).items():
+                if node_name in self._retrieval_node_ids and node_output:
+                    sources = node_output.get("retrieved")
+                    if sources is not None:
+                        yield {
+                            **state,
+                            "phase": "retrieval",
+                            "sources": sources,
+                        }
                 produced = node_output.get("messages", []) if node_output else []
                 for message in produced:
                     if isinstance(message, ToolMessage):

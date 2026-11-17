@@ -35,10 +35,10 @@ def build_chat_model(settings: Settings) -> Any:
 def default_graph_config(tools_available: bool = False) -> dict:
     """Return the graph used until an administrator saves a custom one.
 
-    The default flow is ``system -> agent -> review -> end`` with a retry edge
-    back to the agent, which makes the review gate demonstrable on a fresh
-    deployment. When tools are enabled a tools node and a tool-call route are
-    added as well.
+    The default flow is ``system -> retrieval -> agent -> review -> end`` with a
+    retry edge back to the agent, which makes both the knowledge-grounded reply
+    and the review gate demonstrable on a fresh deployment. When tools are
+    enabled a tools node and a tool-call route are added as well.
     """
     nodes: list[dict] = [
         {"id": "__start__", "type": "start", "config": {}},
@@ -46,6 +46,11 @@ def default_graph_config(tools_available: bool = False) -> dict:
             "id": "system_node",
             "type": "system",
             "config": {"system_prompt": DEFAULT_SYSTEM_PROMPT},
+        },
+        {
+            "id": "retrieval_node",
+            "type": "retrieval",
+            "config": {"top_k": 4, "min_score": 0.12},
         },
         {"id": "agent_node", "type": "agent", "config": {}},
         {
@@ -61,7 +66,8 @@ def default_graph_config(tools_available: bool = False) -> dict:
     ]
     edges: list[dict] = [
         {"source": "__start__", "target": "system_node"},
-        {"source": "system_node", "target": "agent_node"},
+        {"source": "system_node", "target": "retrieval_node"},
+        {"source": "retrieval_node", "target": "agent_node"},
         {"source": "agent_node", "target": "review_node", "condition": "respond"},
         {"source": "review_node", "target": "__end__", "condition": "pass"},
         {"source": "review_node", "target": "agent_node", "condition": "block"},

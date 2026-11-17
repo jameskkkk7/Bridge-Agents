@@ -101,6 +101,27 @@ export const putJson = <T,>(path: string, body: unknown, token: string) =>
 export const deleteJson = <T,>(path: string, token: string) =>
   request<T>(path, { method: "DELETE" }, token);
 
+export async function uploadFile<T>(path: string, file: File | null, token: string): Promise<T> {
+  const body = new FormData();
+  if (file) body.append("file", file);
+  const response = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  });
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`;
+    try {
+      const payload = (await response.json()) as { message?: string; detail?: string };
+      message = payload.message ?? payload.detail ?? message;
+    } catch {
+      /* keep status text */
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as T;
+}
+
 export async function imageBlobUrl(sessionId: string, imageId: string, token: string): Promise<string> {
   const response = await fetch(`${API}/sessions/${sessionId}/images/${imageId}`, {
     headers: { Authorization: `Bearer ${token}` },

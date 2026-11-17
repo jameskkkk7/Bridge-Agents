@@ -10,9 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import operator
-import re
 from datetime import UTC, datetime
-from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from langchain_core.tools import tool
@@ -20,18 +18,6 @@ from langchain_core.tools import tool
 from bridge_agents.config import get_settings
 
 _TOOL_REGISTRY: dict[str, object] = {}
-
-
-def _docs_directory() -> Path:
-    """Locate the documentation bundle without hard-coding an install layout."""
-    configured = (get_settings().docs_dir or "").strip()
-    if configured:
-        return Path(configured)
-    working_copy = Path.cwd() / "docs" / "kb"
-    if working_copy.is_dir():
-        return working_copy
-    return Path(__file__).resolve().parents[4] / "docs" / "kb"
-
 
 _MAX_EXPRESSION_LENGTH = 200
 _MAX_POWER_BASE = 1_000_000
@@ -145,76 +131,32 @@ def calculate(expression: str) -> str:
         return f"Cannot evaluate the expression: {exc}"
 
 
-def _document_title(markdown: str, fallback: str) -> str:
-    for line in markdown.splitlines():
-        if line.startswith("# "):
-            return line[2:].strip() or fallback
-    return fallback
-
-
-def _sections(markdown: str) -> list[tuple[str, str]]:
-    """Split a markdown document into (heading, body) pairs."""
-    sections: list[tuple[str, str]] = []
-    heading = "Overview"
-    body: list[str] = []
-    for line in markdown.splitlines():
-        if line.startswith("## "):
-            if body:
-                sections.append((heading, "\n".join(body).strip()))
-            heading = line[3:].strip() or heading
-            body = []
-        elif not line.startswith("# "):
-            body.append(line)
-    if body:
-        sections.append((heading, "\n".join(body).strip()))
-    return sections
-
-
-_WORD_PATTERN = re.compile(r"[a-z0-9]+")
-
-
-def _search_terms(query: str) -> list[str]:
-    return [term for term in _WORD_PATTERN.findall(query.lower()) if len(term) >= 2]
-
-
 @register("search_docs")
 @tool
 def search_docs(query: str) -> str:
-    """Search the bundled product documentation for sections relevant to the question.
+    """Search the product knowledge base for passages relevant to the question.
+
+    Uses the same hybrid retrieval index as the graph's ``retrieval`` node, so
+    tool calls and automatic grounding answer from the same sources.
 
     Args:
         query: Keywords or a question, for example "Widget Pro activation".
     """
-    documents: list[tuple[str, str]] = []
-    docs_dir = _docs_directory()
-    if docs_dir.is_dir():
-        for path in sorted(docs_dir.glob("*.md")):
-            documents.append((path.name, path.read_text(encoding="utf-8")))
+    from bridge_agents.rag.format import format_tool_result
+    from bridge_agents.rag.knowledge import get_knowledge
+
+    knowledge = get_knowledge()
+    documents = knowledge.documents()
     if not documents:
         return "The documentation bundle is not available in this deployment."
-
-    titles = {name: _document_title(text, name) for name, text in documents}
     if not query.strip():
-        listing = "\n".join(f"- {name}: {titles[name]}" for name, _ in documents)
+        listing = "\n".join(f"- {entry['name']}" for entry in documents)
         return f"Available documentation:\n{listing}"
-
-    terms = _search_terms(query)
-    matches: list[tuple[int, str, str, str]] = []
-    for name, text in documents:
-        for heading, body in _sections(text):
-            haystack = f"{heading}\n{body}".lower()
-            score = sum(haystack.count(term) for term in terms)
-            if score:
-                matches.append((score, name, heading, body))
-    if not matches:
-        available = ", ".join(name for name, _ in documents)
+    try:
+        hits = knowledge.search(query, top_k=3)
+    except Exception as exc:  # pragma: no cover - depends on external embedder
+        return f"The knowledge base is temporarily unavailable: {exc}"
+    if not hits:
+        available = ", ".join(entry["name"] for entry in documents)
         return f"No documentation matched '{query}'. Available documents: {available}"
-
-    matches.sort(key=lambda item: item[0], reverse=True)
-    replies: list[str] = []
-    for _, name, heading, body in matches[:2]:
-        excerpt = " ".join(body.split())
-        if len(excerpt) > 600:
-            excerpt = excerpt[:600].rstrip() + "..."
-        replies.append(f"[{titles[name]} - {heading}]\n{excerpt}")
-    return "\n\n".join(replies)
+    return format_tool_result(hits)
