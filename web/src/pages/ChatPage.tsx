@@ -3,6 +3,7 @@ import {
   errorText, getJson, imageBlobUrl, imageIdFromContent, MessageList, MessageRecord,
   postJson, SessionList, SessionRecord, tokenFor,
 } from "../api";
+import { translate, useLanguage } from "../i18n";
 import { ChatSocket, ConnState, ServerEvent } from "../ws";
 
 interface ViewMessage {
@@ -13,12 +14,13 @@ interface ViewMessage {
   imageUrl?: string;
 }
 
-const QUICK: [string, string][] = [
-  ["Ask about a refund", "Can you guarantee a refund?"],
-  ["Try a tool call", "[[tool]] what time is it?"],
+const QUICK_PROMPTS: [string, string][] = [
+  ["chat.quickRefund", "Can you guarantee a refund?"],
+  ["chat.quickTool", "[[tool]] what time is it?"],
 ];
 
 export default function ChatPage() {
+  const { language, t, systemText } = useLanguage();
   const [connection, setConnection] = useState<ConnState>("connecting");
   const [session, setSession] = useState<SessionRecord | null>(null);
   const [messages, setMessages] = useState<ViewMessage[]>([]);
@@ -33,6 +35,11 @@ export default function ChatPage() {
   const sessionRef = useRef<SessionRecord | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const languageRef = useRef(language);
+
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +48,7 @@ export default function ChatPage() {
         const url = await imageBlobUrl(sessionId, imageId, tokenRef.current);
         setMessages((all) => all.map((m) => (m.imageId === imageId ? { ...m, imageUrl: url } : m)));
       } catch {
-        setError("The image could not be loaded.");
+        setError(translate(languageRef.current, "chat.imageLoadFailed"));
       }
     };
     const view = (record: MessageRecord): ViewMessage =>
@@ -78,7 +85,7 @@ export default function ChatPage() {
         setMessages((all) => [...all, { id: String(event.id ?? imageId), kind: "image", content: String(event.filename ?? "image"), imageId }]);
         void hydrate(active.id, imageId);
       } else if (event.type === "error") {
-        setError(String(event.message ?? "The server reported an error."));
+        setError(String(event.message ?? translate(languageRef.current, "chat.error")));
       }
     };
     const boot = async () => {
@@ -88,7 +95,11 @@ export default function ChatPage() {
         const list = await getJson<SessionList>("/sessions?limit=20", token);
         const active =
           list.items.find((item) => item.status === "active") ??
-          (await postJson<SessionRecord>("/sessions", { title: "Live demo conversation" }, token));
+          (await postJson<SessionRecord>(
+            "/sessions",
+            { title: translate(languageRef.current, "chat.demoTitle") },
+            token,
+          ));
         if (cancelled) return;
         setSession(active);
         sessionRef.current = active;
@@ -145,7 +156,7 @@ export default function ChatPage() {
       });
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as { message?: string };
-        throw new Error(payload.message ?? "The image upload failed.");
+        throw new Error(payload.message ?? translate(languageRef.current, "chat.imageUploadFailed"));
       }
     } catch (caught) {
       setError(errorText(caught));
@@ -159,26 +170,31 @@ export default function ChatPage() {
     <section className="page">
       <div className="card chat-head">
         <div>
-          <h2>{session ? session.title : "Connecting to your conversation…"}</h2>
-          <p className="muted small">customer view · {session ? `session ${session.id.slice(0, 8)}` : "preparing"}</p>
+          <h2>{session ? session.title : t("chat.connecting")}</h2>
+          <p className="muted small">
+            {t("chat.customerView")} ·{" "}
+            {session ? t("chat.session", { id: session.id.slice(0, 8) }) : t("chat.preparing")}
+          </p>
         </div>
         <div className="row">
-          {toolNote && <span className="pill tool">tool: {toolNote}</span>}
-          <span className={`status ${connection}`}>{connection}</span>
+          {toolNote && <span className="pill tool">{t("chat.toolPrefix")} {toolNote}</span>}
+          <span className={`status ${connection}`}>{t(`status.${connection}`)}</span>
         </div>
       </div>
       {error && <div className="banner error">{error}</div>}
       <div className="card messages">
         {messages.length === 0 && !typing && (
-          <div className="empty"><p>Say hello — or use a demo prompt to see the review gate and a tool call.</p></div>
+          <div className="empty"><p>{t("chat.empty")}</p></div>
         )}
         {messages.map((message) =>
           message.kind === "system" ? (
-            <div key={message.id} className="system-note">{message.content}</div>
+            <div key={message.id} className="system-note">{systemText(message.content)}</div>
           ) : (
             <div key={message.id} className={`bubble ${message.kind}`}>
               {message.kind === "image"
-                ? message.imageUrl ? <img src={message.imageUrl} alt="uploaded attachment" /> : <span className="muted">loading image…</span>
+                ? message.imageUrl
+                  ? <img src={message.imageUrl} alt={t("chat.imageAlt")} />
+                  : <span className="muted">{t("chat.imageLoading")}</span>
                 : message.content}
             </div>
           ),
@@ -189,10 +205,10 @@ export default function ChatPage() {
       </div>
       <div className="card composer">
         <div className="chips">
-          {QUICK.map(([label, prompt]) => (
-            <button key={label} className="chip" onClick={() => send(prompt)}>{label}</button>
+          {QUICK_PROMPTS.map(([labelKey, prompt]) => (
+            <button key={labelKey} className="chip" onClick={() => send(prompt)}>{t(labelKey)}</button>
           ))}
-          <span className="hint">Enter to send · Shift+Enter for a new line</span>
+          <span className="hint">{t("chat.hint")}</span>
         </div>
         <div className="composer-row">
           <button className="icon" onClick={() => fileRef.current?.click()} disabled={uploading}>
@@ -200,9 +216,9 @@ export default function ChatPage() {
           </button>
           <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" hidden
             onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} />
-          <textarea value={draft} placeholder="Ask the assistant something…" onChange={(event) => setDraft(event.target.value)}
+          <textarea value={draft} placeholder={t("chat.placeholder")} onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(draft); } }} />
-          <button className="primary" onClick={() => send(draft)}>Send</button>
+          <button className="primary" onClick={() => send(draft)}>{t("common.send")}</button>
         </div>
       </div>
     </section>

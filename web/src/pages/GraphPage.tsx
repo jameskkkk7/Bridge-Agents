@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { deleteJson, errorText, getJson, putJson, tokenFor, uploadFile } from "../api";
+import { useLanguage } from "../i18n";
 
 type Panel = "flow" | "knowledge";
 
@@ -56,6 +57,7 @@ function formatBytes(value: number): string {
 }
 
 function FlowPanel({ token, onError }: { token: string; onError: (message: string) => void }) {
+  const { t } = useLanguage();
   const [configText, setConfigText] = useState("");
   const [mermaid, setMermaid] = useState("");
   const [status, setStatus] = useState("");
@@ -78,13 +80,13 @@ function FlowPanel({ token, onError }: { token: string; onError: (message: strin
     try {
       parsed = JSON.parse(configText) as GraphConfig;
     } catch (caught) {
-      onError(`Invalid JSON: ${errorText(caught)}`);
+      onError(t("flow.invalidJson", { message: errorText(caught) }));
       return;
     }
     try {
       await putJson("/admin/runtime-config/agent-graph-config", parsed, token);
       await load();
-      setStatus("Flow saved and recompiled.");
+      setStatus(t("flow.saved"));
     } catch (caught) {
       onError(errorText(caught));
     }
@@ -96,7 +98,7 @@ function FlowPanel({ token, onError }: { token: string; onError: (message: strin
     try {
       await deleteJson("/admin/runtime-config/agent-graph-config", token);
       await load();
-      setStatus("Saved flow removed — the built-in graph is active again.");
+      setStatus(t("flow.resetDone"));
     } catch (caught) {
       onError(errorText(caught));
     }
@@ -105,23 +107,21 @@ function FlowPanel({ token, onError }: { token: string; onError: (message: strin
   return (
     <>
       <div className="card toolbar">
-        <span className="muted small">Saving compiles the graph before it replaces the live one.</span>
-        <button className="ghost" onClick={() => void reset()}>Reset</button>
-        <button className="primary" onClick={() => void save()}>Save &amp; compile</button>
+        <span className="muted small">{t("flow.toolbar")}</span>
+        <button className="ghost" onClick={() => void reset()}>{t("common.reset")}</button>
+        <button className="primary" onClick={() => void save()}>{t("flow.save")}</button>
       </div>
       {status && <div className="banner success">{status}</div>}
       <div className="graph-grid">
         <div className="card column">
-          <h3>Graph configuration</h3>
-          <p className="muted small">
-            The default flow is system → retrieval → agent → review → end. Saving compiles the graph before it goes live.
-          </p>
+          <h3>{t("flow.configTitle")}</h3>
+          <p className="muted small">{t("flow.configHelp")}</p>
           <textarea className="code" spellCheck={false} value={configText} onChange={(event) => setConfigText(event.target.value)} />
         </div>
         <div className="card column">
-          <h3>Compiled preview</h3>
-          <p className="muted small">Mermaid source of the live graph. Paste it into mermaid.live to explore it.</p>
-          <pre className="mermaid">{mermaid || "Loading…"}</pre>
+          <h3>{t("flow.previewTitle")}</h3>
+          <p className="muted small">{t("flow.previewHelp")}</p>
+          <pre className="mermaid">{mermaid || t("common.loading")}</pre>
         </div>
       </div>
     </>
@@ -129,6 +129,7 @@ function FlowPanel({ token, onError }: { token: string; onError: (message: strin
 }
 
 function KnowledgePanel({ token, onError }: { token: string; onError: (message: string) => void }) {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<KnowledgeStatus | null>(null);
   const [query, setQuery] = useState("How do I activate Widget Pro?");
   const [result, setResult] = useState<KnowledgeSearch | null>(null);
@@ -163,7 +164,7 @@ function KnowledgePanel({ token, onError }: { token: string; onError: (message: 
     setBusy("reindex");
     try {
       setStatus(await uploadFile<KnowledgeStatus>("/admin/knowledge/reindex", null, token));
-      setNotice("Index rebuilt from the knowledge directory.");
+      setNotice(t("knowledge.reindexed"));
     } catch (caught) {
       onError(errorText(caught));
     } finally {
@@ -178,7 +179,7 @@ function KnowledgePanel({ token, onError }: { token: string; onError: (message: 
     try {
       await uploadFile("/admin/knowledge/documents", file, token);
       await loadStatus();
-      setNotice(`Uploaded ${file.name} and reindexed.`);
+      setNotice(t("knowledge.uploaded", { name: file.name }));
     } catch (caught) {
       onError(errorText(caught));
     } finally {
@@ -194,7 +195,7 @@ function KnowledgePanel({ token, onError }: { token: string; onError: (message: 
     try {
       await deleteJson(`/admin/knowledge/documents/${encodeURIComponent(name)}`, token);
       await loadStatus();
-      setNotice(`Deleted ${name}.`);
+      setNotice(t("knowledge.deleted", { name }));
     } catch (caught) {
       onError(errorText(caught));
     } finally {
@@ -205,12 +206,12 @@ function KnowledgePanel({ token, onError }: { token: string; onError: (message: 
   return (
     <>
       <div className="card toolbar">
-        <span className="muted small">Uploads and deletes reindex immediately.</span>
+        <span className="muted small">{t("knowledge.toolbar")}</span>
         <button className="ghost" disabled={busy === "reindex"} onClick={() => void reindex()}>
-          Reindex
+          {t("knowledge.reindex")}
         </button>
         <button className="primary" disabled={busy === "upload"} onClick={() => fileRef.current?.click()}>
-          {busy === "upload" ? "Uploading…" : "Upload document"}
+          {busy === "upload" ? t("knowledge.uploading") : t("knowledge.upload")}
         </button>
         <input
           ref={fileRef}
@@ -227,36 +228,33 @@ function KnowledgePanel({ token, onError }: { token: string; onError: (message: 
 
       {status && (
         <div className="stat-grid">
-          <div className="card stat"><strong>{status.document_count}</strong><span>documents</span></div>
-          <div className="card stat"><strong>{status.chunk_count}</strong><span>passages</span></div>
-          <div className="card stat"><strong>{status.dimension}</strong><span>{status.embedder} dims</span></div>
-          <div className="card stat"><strong>{status.top_k}</strong><span>passages per turn</span></div>
+          <div className="card stat"><strong>{status.document_count}</strong><span>{t("knowledge.statsDocuments")}</span></div>
+          <div className="card stat"><strong>{status.chunk_count}</strong><span>{t("knowledge.statsPassages")}</span></div>
+          <div className="card stat"><strong>{status.dimension}</strong><span>{t("knowledge.statsDims", { embedder: status.embedder })}</span></div>
+          <div className="card stat"><strong>{status.top_k}</strong><span>{t("knowledge.statsTopK")}</span></div>
         </div>
       )}
 
       <div className="knowledge-grid">
         <div className="card column">
-          <h3>Retrieval preview</h3>
-          <p className="muted small">
-            Hybrid search: {status ? `${Math.round(100 * 0.6)}% vector + ${Math.round(100 * 0.4)}% lexical` : "vector + lexical"}.
-            Exactly what the retrieval node feeds the assistant.
-          </p>
+          <h3>{t("knowledge.previewTitle")}</h3>
+          <p className="muted small">{t("knowledge.previewHelp")}</p>
           <div className="search-row">
             <input
               value={query}
-              placeholder="Ask the knowledge base…"
+              placeholder={t("knowledge.searchPlaceholder")}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") void runSearch();
               }}
             />
             <button className="primary" disabled={busy === "search"} onClick={() => void runSearch()}>
-              Search
+              {t("common.search")}
             </button>
           </div>
           {result && (
             <p className="muted small">
-              {result.hits.length} passage(s) in {result.elapsed_ms} ms
+              {t("knowledge.results", { count: result.hits.length, ms: result.elapsed_ms })}
             </p>
           )}
           <div className="hits">
@@ -268,18 +266,25 @@ function KnowledgePanel({ token, onError }: { token: string; onError: (message: 
                 </div>
                 <p>{hit.preview}…</p>
                 <span className="muted small">
-                  {hit.source} · vector {hit.vector_score.toFixed(2)} · lexical {hit.lexical_score.toFixed(2)}
+                  {hit.source} · {t("knowledge.vector")} {hit.vector_score.toFixed(2)} · {t("knowledge.lexical")} {hit.lexical_score.toFixed(2)}
                 </span>
               </div>
             ))}
-            {result && result.hits.length === 0 && <p className="muted small">No passage passed the score threshold.</p>}
+            {result && result.hits.length === 0 && <p className="muted small">{t("knowledge.noResults")}</p>}
           </div>
         </div>
         <div className="card column">
-          <h3>Documents</h3>
+          <h3>{t("knowledge.documentsTitle")}</h3>
           <p className="muted small">{status?.directory}</p>
           <table>
-            <thead><tr><th>Document</th><th>Size</th><th>Passages</th><th /></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("knowledge.colDocument")}</th>
+                <th>{t("knowledge.colSize")}</th>
+                <th>{t("knowledge.colPassages")}</th>
+                <th />
+              </tr>
+            </thead>
             <tbody>
               {status?.documents.map((document) => (
                 <tr key={document.name}>
@@ -288,14 +293,14 @@ function KnowledgePanel({ token, onError }: { token: string; onError: (message: 
                   <td className="muted small">{document.chunks}</td>
                   <td>
                     <button className="link" disabled={busy === document.name} onClick={() => void remove(document.name)}>
-                      delete
+                      {t("common.delete")}
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {status && status.documents.length === 0 && <p className="muted small">No documents yet — upload a markdown file.</p>}
+          {status && status.documents.length === 0 && <p className="muted small">{t("knowledge.empty")}</p>}
         </div>
       </div>
     </>
@@ -303,6 +308,7 @@ function KnowledgePanel({ token, onError }: { token: string; onError: (message: 
 }
 
 export default function GraphPage() {
+  const { t } = useLanguage();
   const [panel, setPanel] = useState<Panel>("flow");
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
@@ -323,14 +329,16 @@ export default function GraphPage() {
     <section className="page">
       <div className="card page-head">
         <div>
-          <h2>Studio</h2>
-          <p className="muted small">
-            The assistant answers from this knowledge base, and every reply still passes the review gate.
-          </p>
+          <h2>{t("studio.title")}</h2>
+          <p className="muted small">{t("studio.subtitle")}</p>
         </div>
         <div className="tabs">
-          <button className={panel === "flow" ? "tab active" : "tab"} onClick={() => setPanel("flow")}>Flow</button>
-          <button className={panel === "knowledge" ? "tab active" : "tab"} onClick={() => setPanel("knowledge")}>Knowledge</button>
+          <button className={panel === "flow" ? "tab active" : "tab"} onClick={() => setPanel("flow")}>
+            {t("studio.flow")}
+          </button>
+          <button className={panel === "knowledge" ? "tab active" : "tab"} onClick={() => setPanel("knowledge")}>
+            {t("studio.knowledge")}
+          </button>
         </div>
       </div>
       {error && <div className="banner error">{error}</div>}

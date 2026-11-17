@@ -9,6 +9,7 @@ import {
   putJson,
   tokenFor,
 } from "../api";
+import { useLanguage } from "../i18n";
 import { ChatSocket, ConnState } from "../ws";
 
 function toRecord(event: Record<string, unknown>): MessageRecord {
@@ -24,6 +25,7 @@ function toRecord(event: Record<string, unknown>): MessageRecord {
 }
 
 export default function AdminPage() {
+  const { t, systemText, language } = useLanguage();
   const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [selected, setSelected] = useState<AdminSession | null>(null);
   const [messages, setMessages] = useState<MessageRecord[]>([]);
@@ -35,6 +37,11 @@ export default function AdminPage() {
   const socketRef = useRef<ChatSocket | null>(null);
   const selectedRef = useRef<AdminSession | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const languageRef = useRef(language);
+
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
 
   const closeSocket = () => {
     socketRef.current?.close();
@@ -90,7 +97,7 @@ export default function AdminPage() {
             created_at: String(event.created_at ?? ""),
           });
         } else if (event.type === "error") {
-          setError(String(event.message ?? "The server reported an error."));
+          setError(String(event.message ?? t("admin.error")));
         }
       },
     });
@@ -129,9 +136,7 @@ export default function AdminPage() {
       setSelected(updated);
       selectedRef.current = updated;
       setNotice(
-        updated.human_takeover
-          ? "Takeover on — the AI stops and its in-flight reply was cancelled."
-          : "Takeover released — the assistant answers again.",
+        updated.human_takeover ? t("admin.noticeTakeoverOn") : t("admin.noticeTakeoverOff"),
       );
       await loadSessions(tokenRef.current);
     } catch (caught) {
@@ -144,11 +149,11 @@ export default function AdminPage() {
     const active = selectedRef.current;
     if (!active || !text) return;
     if (!active.human_takeover) {
-      setError("Take over the conversation before replying.");
+      setError(t("admin.needTakeover"));
       return;
     }
     if (!socketRef.current) {
-      setError("The realtime connection is not ready yet.");
+      setError(t("admin.socketNotReady"));
       return;
     }
     socketRef.current.sendMessage(text);
@@ -167,34 +172,33 @@ export default function AdminPage() {
       );
       setSelected(updated);
       selectedRef.current = updated;
-      setNotice("Conversation closed.");
+      setNotice(t("admin.noticeClosed"));
       await loadSessions(tokenRef.current);
     } catch (caught) {
       setError(errorText(caught));
     }
   };
 
+  const statusLabel = (status: string) =>
+    t(`admin.status.${status}`) === `admin.status.${status}` ? status : t(`admin.status.${status}`);
   const composerEnabled = Boolean(selected?.human_takeover && selected?.status !== "closed");
 
   return (
     <section className="page">
       <div className="card page-head">
         <div>
-          <h2>Support desk</h2>
-          <p className="muted small">
-            Watch conversations live, take over when a human should answer, and reply
-            from here — the customer sees it immediately.
-          </p>
+          <h2>{t("admin.title")}</h2>
+          <p className="muted small">{t("admin.subtitle")}</p>
         </div>
         <div className="row">
-         {selected && <span className={`status ${connection}`}>{connection}</span>}
+          {selected && <span className={`status ${connection}`}>{t(`status.${connection}`)}</span>}
           <button
             className="ghost"
             onClick={() =>
               void loadSessions(tokenRef.current).catch((caught) => setError(errorText(caught)))
             }
           >
-            Refresh
+            {t("common.refresh")}
           </button>
         </div>
       </div>
@@ -203,11 +207,17 @@ export default function AdminPage() {
       <div className="admin-grid">
         <div className="card column">
           <div className="table-head">
-            <h3>Conversations</h3>
-            <span className="muted small">{sessions.length} shown</span>
+            <h3>{t("admin.conversations")}</h3>
+            <span className="muted small">{t("admin.shown", { count: sessions.length })}</span>
           </div>
           <table>
-            <thead><tr><th>Customer</th><th>Status</th><th>AI</th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("admin.colCustomer")}</th>
+                <th>{t("admin.colStatus")}</th>
+                <th>{t("admin.colAI")}</th>
+              </tr>
+            </thead>
             <tbody>
               {sessions.map((session) => (
                 <tr
@@ -219,12 +229,12 @@ export default function AdminPage() {
                     <strong>{session.user_email ?? session.user_id.slice(0, 8)}</strong>
                     <span className="muted small block">{session.title}</span>
                   </td>
-                  <td><span className={`pill ${session.status}`}>{session.status}</span></td>
+                  <td><span className={`pill ${session.status}`}>{statusLabel(session.status)}</span></td>
                   <td>
                     {session.human_takeover ? (
-                      <span className="pill takeover">human</span>
+                      <span className="pill takeover">{t("admin.badgeHuman")}</span>
                     ) : (
-                      <span className="pill ai">assistant</span>
+                      <span className="pill ai">{t("admin.badgeAssistant")}</span>
                     )}
                   </td>
                 </tr>
@@ -236,8 +246,10 @@ export default function AdminPage() {
           <div className="table-head">
             <h3>
               {selected
-                ? `Conversation · ${(selected.user_email ?? selected.id).slice(0, 22)}`
-                : "Pick a conversation"}
+                ? t("admin.conversation", {
+                    name: (selected.user_email ?? selected.id).slice(0, 22),
+                  })
+                : t("admin.pick")}
             </h3>
             {selected && (
               <div className="row">
@@ -245,33 +257,41 @@ export default function AdminPage() {
                   className={selected.human_takeover ? "ghost" : "primary"}
                   onClick={() => void takeover()}
                 >
-                  {selected.human_takeover ? "Release to AI" : "Take over"}
+                  {selected.human_takeover ? t("admin.release") : t("admin.takeOver")}
                 </button>
                 <button
                   className="ghost"
                   disabled={selected.status === "closed"}
                   onClick={() => void close()}
                 >
-                  Close
+                  {t("common.close")}
                 </button>
               </div>
             )}
           </div>
-          {!selected && <p className="empty">Select a conversation to review its transcript.</p>}
+          {!selected && <p className="empty">{t("admin.pickHint")}</p>}
           {selected && (
             <>
               <div className="transcript">
-                {messages.length === 0 && <p className="muted small">No messages yet.</p>}
+                {messages.length === 0 && <p className="muted small">{t("admin.noMessages")}</p>}
                 {messages.map((message) => (
                   <div
                     key={message.id}
                     className={`transcript-row ${message.sender_type} ${message.message_type}`}
                   >
                     <span className="who">
-                      {message.message_type === "system" ? "system" : message.sender_type}
+                      {message.message_type === "system"
+                        ? t("admin.system")
+                        : message.sender_type === "user"
+                          ? t("admin.user")
+                          : t("admin.agent")}
                     </span>
                     <span className="what">
-                      {message.message_type === "image" ? "[image]" : message.content}
+                      {message.message_type === "image"
+                        ? `[${t("common.image")}]`
+                        : message.message_type === "system"
+                          ? systemText(message.content)
+                          : message.content}
                     </span>
                   </div>
                 ))}
@@ -282,9 +302,7 @@ export default function AdminPage() {
                   value={draft}
                   rows={2}
                   placeholder={
-                    composerEnabled
-                      ? "Reply as support… Enter to send, Shift+Enter for a new line"
-                      : "Take over the conversation to reply"
+                    composerEnabled ? t("admin.placeholderEnabled") : t("admin.placeholderDisabled")
                   }
                   disabled={!composerEnabled}
                   onChange={(event) => setDraft(event.target.value)}
@@ -296,7 +314,7 @@ export default function AdminPage() {
                   }}
                 />
                 <button className="primary" disabled={!composerEnabled} onClick={send}>
-                  Send reply
+                  {t("admin.sendReply")}
                 </button>
               </div>
             </>
