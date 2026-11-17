@@ -207,3 +207,20 @@ mirroring consistent for AI and human messages.
 the reviewer of this behaviour is takeover. The web composer disables itself
 until takeover is on, and thinking about stricter server-side enforcement is a
 v0.2 item (for example, reject staff messages while takeover is off).
+
+## 17. Two entry points share one SPA bundle
+
+**Decision:** the browser app has two shells with separate URLs: `/` is the
+customer chat with no staff navigation, and `/admin` is the staff portal
+(support desk plus Studio at `/admin/studio`). Both are served from the same
+bundle and the same origin as the API.
+
+**Why:** a customer should never see "Support desk" or "Studio" in their chat
+window, and a support agent should not have to navigate past a customer chat
+page to reach a conversation. Separate shells also make the screenshots and the
+demo story match the two audiences, while keeping one deployable artifact.
+
+**Cost:** staff pages are hidden, not isolated, in the browser; the real
+boundary remains the token and the `AGENT`/`ADMIN` checks on every staff API.
+A stronger deployment could serve the staff bundle on a different hostname
+behind SSO, at the cost of a second build and deployment.

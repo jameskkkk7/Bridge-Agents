@@ -277,14 +277,20 @@ python -m venv /tmp/ba && /tmp/ba/bin/pip install dist/bridge_agents-0.1.0-py3-n
 
 ## Web demo
 
-`web/` is a small React + TypeScript single-page app (no UI framework) with three pages:
+`web/` is a small React + TypeScript single-page app (no UI framework) with two
+separate entry points sharing one bundle:
 
-| Page | Purpose |
-|---|---|
-| `/` | Customer chat: streaming replies, review-gate fallback, image upload, reconnect indicator |
-| `/graph` | Studio: edit the flow JSON, save (compile-checked) or reset, inspect the Mermaid source, and manage the knowledge base (search preview, upload, reindex) |
-| any | EN / 中文 switch in the top bar; the choice is stored per browser |
-| `/admin` | Support desk: live transcript over a staff websocket, takeover/release, a reply box that delivers to the customer, and close |
+| Path | Entry | Purpose |
+|---|---|---|
+| `/` | Customer | Chat only: streaming replies, review-gate fallback, image upload, reconnect indicator; the shell has no staff navigation |
+| `/admin` | Staff | Support desk: live transcript over a staff websocket, takeover/release, a reply box that delivers to the customer, and close |
+| `/admin/studio` | Staff | Studio: edit the flow JSON, save (compile-checked) or reset, inspect the Mermaid source, and manage the knowledge base (search preview, upload, reindex) |
+| `/graph` | — | Legacy URL, redirects to `/admin/studio` |
+| any | — | EN / 中文 switch in the top bar; the choice is stored per browser |
+
+The split is a UI/entry-point boundary, not an authentication boundary: the
+staff APIs stay protected by the bearer token and the `AGENT`/`ADMIN` role, so
+hiding navigation is defence in depth rather than the only control.
 
 Nginx serves the app in the demo stack and proxies `/api`, `/ws` and `/webhook`
 to the API, so the browser is same-origin. Locally the Vite dev server proxies
@@ -293,8 +299,8 @@ The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionari
 `LanguageProvider` persists the choice in `localStorage`, detects the browser
 language on first visit and localizes known system messages (takeover/release).
 
-Front-end budget: 13 source files and 1,663 lines including deployment assets
-(limit: 13 files / 1,750 lines; the bilingual UI is the recent addition).
+Front-end budget: 13 source files and 1,715 lines including deployment assets
+(limit: 13 files / 1,800 lines; the two entry points are the recent addition).
 
 ## One-command demo stack
 

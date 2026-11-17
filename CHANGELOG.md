@@ -38,6 +38,9 @@ conversations, with a deterministic offline demo.
   knowledge panel), and a support desk with live transcript, takeover and replies.
 - **Bilingual UI:** English and Simplified Chinese dictionaries, a persisted
   EN / 中文 switch, browser-language detection and localized system messages.
+- **Two entry points:** `/` is the customer chat (no staff navigation) and
+  `/admin` is the staff portal with the support desk and Studio at
+  `/admin/studio`; the legacy `/graph` URL redirects.
 - **Library:** the core runtime is also packaged as a standalone
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,

@@ -77,10 +77,15 @@ The story the demo tells:
 3. A teammate takes over from the support desk, the AI stops writing, and the
    human answers directly.
 
-Run `docker compose up --build`, open http://localhost and try the flows above
-in the live demo. Studio → Knowledge shows the retrieval index, a search
-preview and document upload. The whole UI ships in English and 简体中文 — use
-the EN / 中文 switch in the top bar; the choice is remembered.
+Run `docker compose up --build`, then open one of the two entry points:
+
+- **`http://localhost/` — customer entry:** chat only, no staff navigation.
+- **`http://localhost/admin` — staff entry:** the support desk, with Studio
+  (flow + knowledge) under `/admin/studio`.
+
+Studio → Knowledge shows the retrieval index, a search preview and document
+upload. The whole UI ships in English and 简体中文 — use the EN / 中文 switch in
+the top bar; the choice is remembered.
 
 ## Try it today
 
@@ -153,7 +158,7 @@ is not an acceptable answer.
 | Secure sign-in with three roles (customer, support, admin) | CI, design notes and release packaging | Slack adapter and webhook API |
 | Review-gated runtime: buffering, retries, fallbacks, safe defaults | Drag-and-drop flow editor | Database migrations and deployment guides |
 | Real-time conversations: REST + WebSocket streaming | Embeddable widget | Load-test scripts and multi-tenant storage |
-| Browser demo: chat, Studio (flow + knowledge) and support desk with human takeover | — | — |
+| Two entry points: customer chat at `/`, staff portal at `/admin` (support desk + Studio) | — | — |
 | Bilingual UI: English and 简体中文, switchable and remembered per browser | — | — |
 | Grounded answers: hybrid retrieval, citations and an editable knowledge base (upload, reindex, search preview) | Reranking and per-tenant knowledge bases | — |
 | Human replies: live support transcript with takeover and a reply box in the browser | Mirroring customer, assistant and support messages to Slack |
@@ -169,6 +174,11 @@ AI may say, who can change the flow, and when a human steps in.
 **Do I need an OpenAI API key to try it?**
 No. The default mode uses a deterministic mock model, so a fresh checkout works
 offline. Live mode works with any OpenAI-compatible endpoint.
+
+**Where are the two entry points?**
+`/` is the customer chat and has no staff navigation. `/admin` is the staff
+portal: support desk at `/admin`, Studio (flow and knowledge) at
+`/admin/studio`. The old `/graph` URL redirects to `/admin/studio`.
 
 **Is the UI available in Chinese?**
 Yes — the browser demo ships in English and 简体中文 and remembers the choice.
