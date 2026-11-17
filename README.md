@@ -31,7 +31,7 @@ reply before the customer sees it?**
 
 | 🛡 **Review before send** | 🙋 **Humans stay in control** |
 |---|---|
-| A second model reviews every draft against your policy. Approved text streams to the customer; a rejected draft is replaced by your fallback and never shown. | A teammate can take over a conversation, and the AI's pending answer is cancelled — the customer gets a person, not a duplicate reply. |
+| A second model reviews every draft against your policy. Approved text streams to the customer; a rejected draft is replaced by your fallback and never shown. | A teammate can take over a conversation, and the AI's pending answer is cancelled — then reply from the support desk or the bound Lark chat. The customer gets a person, not a duplicate reply. |
 | 📚 **Answers with sources** | 🧩 **Change the flow, not the code** |
 | Every reply is grounded in your documentation. The retriever finds the relevant passages, the assistant cites them as [1], [2], and the review gate still checks the wording. | The conversation flow is saved configuration. Operations can rewire it, and a flow that cannot run is refused before it goes live. *(drag-and-drop editor in progress; the JSON editor is live)* |
 
@@ -154,7 +154,8 @@ is not an acceptable answer.
 | Real-time conversations: REST + WebSocket streaming | Embeddable widget | Load-test scripts and multi-tenant storage |
 | Browser demo: chat, flow editor and support desk with human takeover | — | — |
 | Grounded answers: hybrid retrieval, citations and an editable knowledge base (upload, reindex, search preview) | Reranking and per-tenant knowledge bases | — |
-| Lark channel: signed webhook, encrypted events and support commands (disabled by default) | — | — |
+| Human replies: live support transcript with takeover and a reply box in the browser | Mirroring customer, assistant and support messages to Slack |
+| Lark channel: signed webhook, encrypted events, support commands and two-way human replies (disabled by default) | — | — |
 | One-command Docker stack with a deterministic mock model (offline, no API key) | — | — |
 
 ## FAQ
@@ -166,6 +167,11 @@ AI may say, who can change the flow, and when a human steps in.
 **Do I need an OpenAI API key to try it?**
 No. The default mode uses a deterministic mock model, so a fresh checkout works
 offline. Live mode works with any OpenAI-compatible endpoint.
+
+**Can a human reply to the customer?**
+Yes. The support desk shows a live transcript; take over the conversation and the
+reply box sends a real message the customer receives instantly. A bound Lark chat
+works the same way: after `/takeover`, plain text is delivered to the customer.
 
 **Does it answer from my own documentation?**
 Yes. The retriever indexes a knowledge directory (seeded from `docs/kb`, editable
@@ -206,6 +212,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 - [x] One-command Docker stack with the mock model (offline, no API key)
 - [x] First messaging integration: Lark webhook with signed events and agent commands
 - [x] Retrieval-augmented answers: hybrid search, citations, knowledge upload and reindex
+- [x] Human replies from the support desk and from a bound Lark chat, with live two-way mirroring
 - [ ] Second messaging integration (Slack) and a webhook API
 - [ ] Reranking, per-tenant knowledge bases and a visual flow editor
 - [ ] Embeddable widget

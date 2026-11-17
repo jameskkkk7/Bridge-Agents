@@ -26,8 +26,12 @@ conversations, with a deterministic offline demo.
   guaranteed `stream_end`, reconnect support and per-user rate limiting.
 - **Support desk:** admin conversation list, transcript, status changes and
   human takeover that cancels the in-flight AI reply.
+- **Human replies:** live support transcript over a staff websocket, takeover and
+  a reply box that delivers messages to the customer instantly.
 - **Lark channel:** signed webhook, AES-encrypted events, command handling for
-  `/takeover`, `/release`, `/status` and `/help`; disabled and offline by default.
+  `/takeover`, `/release`, `/status` and `/help`; plain-text agent replies after
+  takeover reach the customer; customer/assistant/support messages mirror into
+  the bound chat; disabled and offline by default.
 - **Demo stack:** `docker compose up --build` starts the API, a deterministic
   OpenAI-compatible mock model and the web demo; no API key required.
 - **Web demo:** customer chat, JSON flow editor with Mermaid preview, and a
@@ -36,6 +40,6 @@ conversations, with a deterministic offline demo.
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,
   injection guard, rate limiter, settings and typed errors.
-- **Quality:** 219 offline tests, 92% combined line coverage of `app/core` and
+- **Quality:** 233 offline tests, 92% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.

@@ -190,3 +190,20 @@ follows the same contract so the demo shows a real cited answer.
 **Cost:** the model can still cite imprecisely, and citations add tokens to the
 prompt and answer. The admin search preview exists so reviewers can check a
 citation against the scored passages before trusting it.
+
+## 16. Human replies reuse the message pipeline
+
+**Decision:** a staff reply is an ordinary agent message: it is persisted by the
+same message service, broadcast by the same session broadcaster and mirrored by
+the same channel bridge, whether it comes from the support desk websocket or
+from the bound Lark chat.
+
+**Why:** a separate "human reply" table or endpoint would fork delivery,
+ordering and channel mirroring, and the customer's client would need a second
+code path. Reusing one pipeline keeps the transcript, websocket payload and
+mirroring consistent for AI and human messages.
+
+**Cost:** the API does not stop a staff reply while the AI is still generating;
+the reviewer of this behaviour is takeover. The web composer disables itself
+until takeover is on, and thinking about stricter server-side enforcement is a
+v0.2 item (for example, reject staff messages while takeover is off).

@@ -110,6 +110,23 @@ The websocket gateway authenticates with `?token=`, limits each user to 100
 frames per minute, accepts 4000-character messages and image uploads limited
 by MIME type and `MAX_IMAGE_SIZE`.
 
+## Human replies
+
+A human reply is a normal agent message, not a special path:
+
+* staff websockets can join any conversation; a staff message is stored with
+  `sender_type=AGENT` and broadcast to every client in the session, and it does
+  not trigger the AI (only customer messages do);
+* the support desk keeps a staff websocket open for the selected conversation,
+  so customer messages appear live while the page is open;
+* the Lark bridge reuses the same persistence helper: after `/takeover`, plain
+  text in the bound chat becomes a customer-visible agent message;
+* customer, assistant and support messages are mirrored to the bound Lark chat
+  as best effort, in a background task that can never block a conversation.
+
+Takeover remains the recommended order: it cancels the in-flight AI reply, so a
+human answer cannot race a late model answer.
+
 ## Retrieval (RAG)
 
 The retrieval node and the `search_docs` tool share one knowledge base
@@ -225,6 +242,10 @@ When enabled it:
 * accepts text messages from open ids listed in `LARK_AGENT_OPEN_IDS`;
 * runs `/takeover`, `/release`, `/status` and `/help` (Chinese aliases included),
   binding a chat to a session on the first `/takeover <session-id>`;
+* after takeover, delivers plain-text agent replies to the customer and acks the
+  delivery (unknown slash commands still get help);
+* mirrors customer, assistant and support messages into the bound chat, so the
+  agent can follow the conversation without opening the web UI;
 * replies through the tenant access token API.
 
 `LARK_COMMANDS` restricts which commands are enabled. Tests inject a mocked
@@ -262,13 +283,13 @@ python -m venv /tmp/ba && /tmp/ba/bin/pip install dist/bridge_agents-0.1.0-py3-n
 |---|---|
 | `/` | Customer chat: streaming replies, review-gate fallback, image upload, reconnect indicator |
 | `/graph` | Studio: edit the flow JSON, save (compile-checked) or reset, inspect the Mermaid source, and manage the knowledge base (search preview, upload, reindex) |
-| `/admin` | Support desk: conversation list, transcript, takeover/release and close |
+| `/admin` | Support desk: live transcript over a staff websocket, takeover/release, a reply box that delivers to the customer, and close |
 
 Nginx serves the app in the demo stack and proxies `/api`, `/ws` and `/webhook`
 to the API, so the browser is same-origin. Locally the Vite dev server proxies
 those paths to `127.0.0.1:8000` (`cd web && npm install && npm run dev`).
-Front-end budget: 12 source files and 1,122 lines including deployment assets
-(limit: 12 files / 1,150 lines; the knowledge panel is the recent addition).
+Front-end budget: 12 source files and 1,300 lines including deployment assets
+(limit: 12 files / 1,350 lines; the support reply box is the recent addition).
 
 ## One-command demo stack
 
@@ -294,18 +315,18 @@ web demo and `http://localhost:8000/health` for the API.
 ## Quality gates
 
 ```bash
-uv run pytest -q                                                            # 219 passed
+uv run pytest -q                                                            # 233 passed
 uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov-fail-under=70  # 92%
 uv run ruff check .                                                         # clean
 uv run ruff format --check .                                                # clean
 uv run python scripts/check_sanitized.py                                    # exit 0
 ```
 
-Current snapshot: **219 tests** collected, **92%** combined line coverage of
+Current snapshot: **233 tests** collected, **92%** combined line coverage of
 `app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
-clean, and the repository sanitisation gate passes. The tree today is 3,617
-lines of application Python, a 2,651-line library, 3,756 lines of tests and a
-1,122-line web demo.
+clean, and the repository sanitisation gate passes. The tree today is 3,817
+lines of application Python, a 2,760-line library, 4,109 lines of tests and a
+1,300-line web demo.
 
 ## Design decisions
 
@@ -318,6 +339,7 @@ lines of application Python, a 2,651-line library, 3,756 lines of tests and a
 | Mock model mode by default | The demo is deterministic and needs no API key | The mock must be kept in sync with the runtime contract (tests enforce it) |
 | Retrieval is a graph node, not hidden middleware | Operators can see, move or remove grounding per flow | The graph must route into the retrieval node |
 | Hybrid retrieval with a deterministic default embedder | Offline demo, exact-token matches and no model download | A real deployment should switch to an embeddings endpoint |
+| Human replies reuse the message pipeline | One persistence/broadcast path for AI, web staff and Lark | The UI must enforce takeover before replying (the API does not cap it) |
 
 ## Repository layout
 
