@@ -34,8 +34,10 @@ conversations, with a deterministic offline demo.
   the bound chat; disabled and offline by default.
 - **Demo stack:** `docker compose up --build` starts the API, a deterministic
   OpenAI-compatible mock model and the web demo; no API key required.
-- **Web demo:** customer chat, JSON flow editor with Mermaid preview, and a
-  support desk with takeover.
+- **Web demo:** customer chat, Studio (JSON flow editor with Mermaid preview and a
+  knowledge panel), and a support desk with live transcript, takeover and replies.
+- **Bilingual UI:** English and Simplified Chinese dictionaries, a persisted
+  EN / 中文 switch, browser-language detection and localized system messages.
 - **Library:** the core runtime is also packaged as a standalone
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,

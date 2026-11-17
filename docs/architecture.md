@@ -283,13 +283,18 @@ python -m venv /tmp/ba && /tmp/ba/bin/pip install dist/bridge_agents-0.1.0-py3-n
 |---|---|
 | `/` | Customer chat: streaming replies, review-gate fallback, image upload, reconnect indicator |
 | `/graph` | Studio: edit the flow JSON, save (compile-checked) or reset, inspect the Mermaid source, and manage the knowledge base (search preview, upload, reindex) |
+| any | EN / 中文 switch in the top bar; the choice is stored per browser |
 | `/admin` | Support desk: live transcript over a staff websocket, takeover/release, a reply box that delivers to the customer, and close |
 
 Nginx serves the app in the demo stack and proxies `/api`, `/ws` and `/webhook`
 to the API, so the browser is same-origin. Locally the Vite dev server proxies
 those paths to `127.0.0.1:8000` (`cd web && npm install && npm run dev`).
-Front-end budget: 12 source files and 1,300 lines including deployment assets
-(limit: 12 files / 1,350 lines; the support reply box is the recent addition).
+The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionaries,
+`LanguageProvider` persists the choice in `localStorage`, detects the browser
+language on first visit and localizes known system messages (takeover/release).
+
+Front-end budget: 13 source files and 1,663 lines including deployment assets
+(limit: 13 files / 1,750 lines; the bilingual UI is the recent addition).
 
 ## One-command demo stack
 
