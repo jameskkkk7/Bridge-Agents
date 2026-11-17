@@ -224,3 +224,35 @@ demo story match the two audiences, while keeping one deployable artifact.
 boundary remains the token and the `AGENT`/`ADMIN` checks on every staff API.
 A stronger deployment could serve the staff bundle on a different hostname
 behind SSO, at the cost of a second build and deployment.
+
+## 18. Model configuration is runtime data with an encrypted secret
+
+**Decision:** the model endpoint, name, sampling settings and API key are stored
+in the `settings` table; the environment provides defaults. Saving rebuilds the
+pipeline so the change applies to the next message. The API key is encrypted
+with Fernet using a key derived from `JWT_SECRET`, is write-only over the API,
+and is removed by "reset to environment".
+
+**Why:** changing a model should not require editing files and restarting a
+container, and an operator needs one place to see which model is live. Keeping
+the secret out of API responses avoids leaking it to the browser history, logs
+or screenshots.
+
+**Cost:** the secret's safety now depends on `JWT_SECRET` staying private; a
+rotation makes stored model keys unreadable, which surfaces as "key not
+configured" until re-entered. A production deployment may prefer a real secret
+manager over database encryption.
+
+## 19. The support prompt is the graph's system node
+
+**Decision:** the prompt editor reads and writes the `system` node of the saved
+graph instead of storing a second copy.
+
+**Why:** two sources of truth would let the Flow JSON and the prompt editor
+disagree, and the next save in either place would silently overwrite the other.
+Keeping one copy means "save prompt" recompiles and activates the same graph the
+Flow tab shows.
+
+**Cost:** editing the prompt creates a saved graph even if the deployment was
+running the built-in default (the response reports `saved_graph` so this is
+visible). Prompt changes also touch every system node in a multi-system graph.

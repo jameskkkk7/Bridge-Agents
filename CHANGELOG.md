@@ -41,6 +41,9 @@ conversations, with a deterministic offline demo.
 - **Two entry points:** `/` is the customer chat (no staff navigation) and
   `/admin` is the staff portal with the support desk and Studio at
   `/admin/studio`; the legacy `/graph` URL redirects.
+- **Runtime settings:** Studio → Settings can change the OpenAI-compatible
+  endpoint, model, sampling settings and API key (encrypted at rest, write-only
+  over the API) and edit the support prompt; saving hot-swaps the pipeline.
 - **Library:** the core runtime is also packaged as a standalone
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,

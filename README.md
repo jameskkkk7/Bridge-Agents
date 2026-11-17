@@ -84,7 +84,8 @@ Run `docker compose up --build`, then open one of the two entry points:
   (flow + knowledge) under `/admin/studio`.
 
 Studio → Knowledge shows the retrieval index, a search preview and document
-upload. The whole UI ships in English and 简体中文 — use the EN / 中文 switch in
+upload; Studio → Settings changes the model and the support prompt without a
+redeploy. The whole UI ships in English and 简体中文 — use the EN / 中文 switch in
 the top bar; the choice is remembered.
 
 ## Try it today
@@ -143,6 +144,7 @@ local API. Engineering details — API, configuration, quality gates — live in
 | Human handoff that stops the AI mid-answer | ✅ support desk takeover cancels the pending reply | depends on the product |
 | The conversation flow lives with your code and your review | ✅ configuration saved and validated | usually edited in a hosted canvas |
 | Answers grounded in your documentation | ✅ hybrid retrieval with citations and an editable knowledge base | often prompt-only or a separate add-on |
+| Change the model or support prompt without a deploy | ✅ Studio settings, applied to the next message | usually an environment change and restart |
 | Works offline for demos and evaluation | ✅ one command with a mock model | often cloud-first |
 
 Low-code platforms are great for drag-and-drop prototyping. Bridge-Agents is for
@@ -161,6 +163,7 @@ is not an acceptable answer.
 | Two entry points: customer chat at `/`, staff portal at `/admin` (support desk + Studio) | — | — |
 | Bilingual UI: English and 简体中文, switchable and remembered per browser | — | — |
 | Grounded answers: hybrid retrieval, citations and an editable knowledge base (upload, reindex, search preview) | Reranking and per-tenant knowledge bases | — |
+| Studio settings: runtime model configuration (provider, model, sampling, encrypted API key) and a support-prompt editor | Per-tenant model routing | Provider-specific settings beyond OpenAI-compatible APIs |
 | Human replies: live support transcript with takeover and a reply box in the browser | Mirroring customer, assistant and support messages to Slack |
 | Lark channel: signed webhook, encrypted events, support commands and two-way human replies (disabled by default) | — | — |
 | One-command Docker stack with a deterministic mock model (offline, no API key) | — | — |
@@ -184,6 +187,12 @@ portal: support desk at `/admin`, Studio (flow and knowledge) at
 Yes — the browser demo ships in English and 简体中文 and remembers the choice.
 The demo model answers in English because the bundled documentation is English;
 the UI chrome, notices and support flow are fully translated.
+
+**Can I change the model or the support prompt without redeploying?**
+Yes. Studio → Settings lets staff change the OpenAI-compatible endpoint, model
+name, temperature, timeout, retries and API key, and edit the customer-support
+system prompt. Saving applies to the next message; the API key is stored
+encrypted and is never returned by the API.
 
 **Can a human reply to the customer?**
 Yes. The support desk shows a live transcript; take over the conversation and the
@@ -231,6 +240,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 - [x] Retrieval-augmented answers: hybrid search, citations, knowledge upload and reindex
 - [x] Human replies from the support desk and from a bound Lark chat, with live two-way mirroring
 - [x] Bilingual web UI (English / 简体中文) with a persisted language switch
+- [x] Studio settings: runtime model configuration with an encrypted API key, and a support-prompt editor
 - [ ] Second messaging integration (Slack) and a webhook API
 - [ ] Reranking, per-tenant knowledge bases and a visual flow editor
 - [ ] Embeddable widget

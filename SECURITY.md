@@ -18,6 +18,10 @@ within a few days.
 - The demo login endpoint under `/api/v1/auth/dev-login` is only mounted when
   `ALLOW_DEV_LOGIN=true` and the environment is not `production`.
 - No credentials or customer data are shipped with this repository.
+- Runtime model API keys entered in Studio → Settings are encrypted in the
+  database with a key derived from `JWT_SECRET` and are never returned by the
+  API. Set a strong, stable `JWT_SECRET`; rotating it invalidates stored model
+  keys until they are re-entered.
 - The Lark webhook verifies the request signature before parsing, decrypts
   encrypted events, and only accepts text messages from open ids listed in
   `LARK_AGENT_OPEN_IDS`. With `LARK_ENABLED=false` it returns 404 and makes no

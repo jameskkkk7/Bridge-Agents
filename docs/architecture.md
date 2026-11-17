@@ -127,6 +127,24 @@ A human reply is a normal agent message, not a special path:
 Takeover remains the recommended order: it cancels the in-flight AI reply, so a
 human answer cannot race a late model answer.
 
+## Runtime settings
+
+Studio → Settings exposes the two knobs an operator usually needs:
+
+* **Model configuration** — OpenAI-compatible base URL, model name, temperature,
+  timeout, retries, thinking flag and an optional API key. Values are persisted in
+  the `settings` table and layered on top of the environment defaults; saving
+  rebuilds the pipeline so the next message uses the new model. The API key is
+  encrypted with Fernet using a key derived from `JWT_SECRET`, is never returned
+  by the API and is removed when the override is reset.
+* **Support prompt** — the prompt is the graph's `system` node, so the editor and
+  the Flow JSON cannot drift apart. Saving rewrites the system node, recompiles
+  the graph and activates it.
+
+Both endpoints require a staff token (same tier as graph editing). In a stricter
+deployment the model endpoint could be restricted to `ADMIN`; the design note in
+[design-decisions.md](design-decisions.md) records the trade-off.
+
 ## Retrieval (RAG)
 
 The retrieval node and the `search_docs` tool share one knowledge base
@@ -172,6 +190,11 @@ the Studio page shows the same data before a customer ever sees an answer.
 | GET | `/api/v1/admin/runtime-config/agent-graph-config` | Editable graph JSON |
 | PUT | `/api/v1/admin/runtime-config/agent-graph-config` | Validate, persist and activate a graph |
 | DELETE | `/api/v1/admin/runtime-config/agent-graph-config` | Drop the saved graph and restore the default |
+| GET | `/api/v1/admin/runtime-config/model-config` | Effective model configuration (API key never returned) |
+| PUT | `/api/v1/admin/runtime-config/model-config` | Persist a model override and hot-swap the pipeline |
+| DELETE | `/api/v1/admin/runtime-config/model-config` | Drop the override and restore environment defaults |
+| GET | `/api/v1/admin/runtime-config/agent-prompt` | Current support prompt and its source |
+| PUT | `/api/v1/admin/runtime-config/agent-prompt` | Update the prompt, recompile and activate the graph |
 | GET | `/api/v1/admin/sessions` | List every conversation for support |
 | GET | `/api/v1/admin/sessions/{session_id}` | Conversation detail with its owner |
 | GET | `/api/v1/admin/sessions/{session_id}/messages` | Transcript for support staff |
@@ -284,7 +307,7 @@ separate entry points sharing one bundle:
 |---|---|---|
 | `/` | Customer | Chat only: streaming replies, review-gate fallback, image upload, reconnect indicator; the shell has no staff navigation |
 | `/admin` | Staff | Support desk: live transcript over a staff websocket, takeover/release, a reply box that delivers to the customer, and close |
-| `/admin/studio` | Staff | Studio: edit the flow JSON, save (compile-checked) or reset, inspect the Mermaid source, and manage the knowledge base (search preview, upload, reindex) |
+| `/admin/studio` | Staff | Studio: edit the flow JSON, save (compile-checked) or reset, inspect the Mermaid source, manage the knowledge base, and configure the runtime model and support prompt |
 | `/graph` | — | Legacy URL, redirects to `/admin/studio` |
 | any | — | EN / 中文 switch in the top bar; the choice is stored per browser |
 
@@ -299,8 +322,8 @@ The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionari
 `LanguageProvider` persists the choice in `localStorage`, detects the browser
 language on first visit and localizes known system messages (takeover/release).
 
-Front-end budget: 13 source files and 1,715 lines including deployment assets
-(limit: 13 files / 1,800 lines; the two entry points are the recent addition).
+Front-end budget: 14 source files and 2,061 lines including deployment assets
+(limit: 14 files / 2,100 lines; the settings panel is the recent addition).
 
 ## One-command demo stack
 
@@ -326,18 +349,18 @@ web demo and `http://localhost:8000/health` for the API.
 ## Quality gates
 
 ```bash
-uv run pytest -q                                                            # 233 passed
+uv run pytest -q                                                            # 241 passed
 uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov-fail-under=70  # 92%
 uv run ruff check .                                                         # clean
 uv run ruff format --check .                                                # clean
 uv run python scripts/check_sanitized.py                                    # exit 0
 ```
 
-Current snapshot: **233 tests** collected, **92%** combined line coverage of
+Current snapshot: **241 tests** collected, **92%** combined line coverage of
 `app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
-clean, and the repository sanitisation gate passes. The tree today is 3,817
-lines of application Python, a 2,760-line library, 4,109 lines of tests and a
-1,300-line web demo.
+clean, and the repository sanitisation gate passes. The tree today is 4,188
+lines of application Python, a 2,765-line library, 4,317 lines of tests and a
+2,061-line web demo.
 
 ## Design decisions
 
