@@ -315,6 +315,12 @@ The split is a UI/entry-point boundary, not an authentication boundary: the
 staff APIs stay protected by the bearer token and the `AGENT`/`ADMIN` role, so
 hiding navigation is defence in depth rather than the only control.
 
+The layout is responsive without a second app: breakpoints at 900, 640 and 380 px
+stack the navigation, turn every grid into one column, hide secondary table
+columns, switch the composer to a full-width row, respect safe-area insets and
+keep form text at 16 px so iOS does not zoom on focus. Tested at 390x844,
+360x740 and 844x390 (landscape) with no horizontal overflow.
+
 Nginx serves the app in the demo stack and proxies `/api`, `/ws` and `/webhook`
 to the API, so the browser is same-origin. Locally the Vite dev server proxies
 those paths to `127.0.0.1:8000` (`cd web && npm install && npm run dev`).
@@ -322,8 +328,8 @@ The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionari
 `LanguageProvider` persists the choice in `localStorage`, detects the browser
 language on first visit and localizes known system messages (takeover/release).
 
-Front-end budget: 14 source files and 2,061 lines including deployment assets
-(limit: 14 files / 2,100 lines; the settings panel is the recent addition).
+Front-end budget: 14 source files and 2,145 lines including deployment assets
+(limit: 14 files / 2,200 lines; the mobile layout is the recent addition).
 
 ## One-command demo stack
 

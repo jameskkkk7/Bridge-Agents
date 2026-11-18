@@ -145,6 +145,7 @@ local API. Engineering details — API, configuration, quality gates — live in
 | The conversation flow lives with your code and your review | ✅ configuration saved and validated | usually edited in a hosted canvas |
 | Answers grounded in your documentation | ✅ hybrid retrieval with citations and an editable knowledge base | often prompt-only or a separate add-on |
 | Change the model or support prompt without a deploy | ✅ Studio settings, applied to the next message | usually an environment change and restart |
+| Works on a phone | ✅ responsive customer chat, support desk and Studio | admin consoles are often desktop-first |
 | Works offline for demos and evaluation | ✅ one command with a mock model | often cloud-first |
 
 Low-code platforms are great for drag-and-drop prototyping. Bridge-Agents is for
@@ -164,6 +165,7 @@ is not an acceptable answer.
 | Bilingual UI: English and 简体中文, switchable and remembered per browser | — | — |
 | Grounded answers: hybrid retrieval, citations and an editable knowledge base (upload, reindex, search preview) | Reranking and per-tenant knowledge bases | — |
 | Studio settings: runtime model configuration (provider, model, sampling, encrypted API key) and a support-prompt editor | Per-tenant model routing | Provider-specific settings beyond OpenAI-compatible APIs |
+| Responsive UI: phone and tablet layouts for the customer chat, support desk and Studio | Native apps | Desktop-oriented admin consoles |
 | Human replies: live support transcript with takeover and a reply box in the browser | Mirroring customer, assistant and support messages to Slack |
 | Lark channel: signed webhook, encrypted events, support commands and two-way human replies (disabled by default) | — | — |
 | One-command Docker stack with a deterministic mock model (offline, no API key) | — | — |
@@ -187,6 +189,12 @@ portal: support desk at `/admin`, Studio (flow and knowledge) at
 Yes — the browser demo ships in English and 简体中文 and remembers the choice.
 The demo model answers in English because the bundled documentation is English;
 the UI chrome, notices and support flow are fully translated.
+
+**Does the demo work on a phone?**
+Yes. The customer chat, support desk and Studio are responsive down to 360 px wide
+and also tested in landscape. Navigation stacks, grids become single-column, the
+reply composer goes full width and secondary table columns are hidden so nothing
+scrolls sideways.
 
 **Can I change the model or the support prompt without redeploying?**
 Yes. Studio → Settings lets staff change the OpenAI-compatible endpoint, model
@@ -241,6 +249,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 - [x] Human replies from the support desk and from a bound Lark chat, with live two-way mirroring
 - [x] Bilingual web UI (English / 简体中文) with a persisted language switch
 - [x] Studio settings: runtime model configuration with an encrypted API key, and a support-prompt editor
+- [x] Responsive UI for phones and tablets across all three views
 - [ ] Second messaging integration (Slack) and a webhook API
 - [ ] Reranking, per-tenant knowledge bases and a visual flow editor
 - [ ] Embeddable widget

@@ -256,3 +256,19 @@ Flow tab shows.
 **Cost:** editing the prompt creates a saved graph even if the deployment was
 running the built-in default (the response reports `saved_graph` so this is
 visible). Prompt changes also touch every system node in a multi-system graph.
+
+## 20. Mobile support is responsive CSS, not a second app
+
+**Decision:** the three views share one responsive layout with breakpoints at
+900, 640 and 380 px instead of shipping a separate mobile client or a native
+app.
+
+**Why:** the demo has to stay small enough to read in one sitting, and the
+customer chat plus staff tools are mostly lists, forms and a message stream —
+exactly what media queries handle well. One bundle also keeps the two entry
+points, the i18n dictionaries and the API client in one place.
+
+**Cost:** no native push notifications, offline mode or app-store presence, and
+some interactions (a sticky composer above the soft keyboard) are approximations
+of what a native app would do. A production mobile client would still want its
+own build.

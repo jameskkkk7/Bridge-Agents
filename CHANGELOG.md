@@ -44,6 +44,9 @@ conversations, with a deterministic offline demo.
 - **Runtime settings:** Studio → Settings can change the OpenAI-compatible
   endpoint, model, sampling settings and API key (encrypted at rest, write-only
   over the API) and edit the support prompt; saving hot-swaps the pipeline.
+- **Responsive UI:** phone and tablet layouts for the customer chat, support
+  desk and Studio (breakpoints at 900/640/380 px, safe-area insets, 16 px form
+  text, full-width composers and no horizontal scrolling).
 - **Library:** the core runtime is also packaged as a standalone
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,
