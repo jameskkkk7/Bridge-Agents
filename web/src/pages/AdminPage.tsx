@@ -118,6 +118,13 @@ export default function AdminPage() {
       );
       setMessages(history.items.slice().reverse());
       connect(session);
+      if (window.innerWidth <= 900) {
+        window.setTimeout(() => {
+          document
+            .querySelector(".admin-grid .card.column:last-child")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 80);
+      }
     } catch (caught) {
       setError(errorText(caught));
     }
