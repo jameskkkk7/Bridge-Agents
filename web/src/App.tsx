@@ -1,30 +1,15 @@
 import { useEffect, useState } from "react";
-import { useLanguage } from "./i18n";
-import { useTheme } from "./theme";
-import AdminPage from "./pages/AdminPage";
-import ChatPage from "./pages/ChatPage";
-import GraphPage from "./pages/GraphPage";
+import { Moon, Sun } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/i18n";
+import AdminPage from "@/pages/AdminPage";
+import ChatPage from "@/pages/ChatPage";
+import GraphPage from "@/pages/GraphPage";
+import { useTheme } from "@/theme";
 
 type StaffView = "support" | "studio";
-
-
-function MoonIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
-    </svg>
-  );
-}
-
-function SunIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41" />
-    </svg>
-  );
-}
-
 
 const STAFF_PATHS: Record<string, StaffView> = {
   "/admin": "support",
@@ -75,62 +60,89 @@ export default function App() {
   };
 
   const themeToggle = (
-    <button
-      className="theme-btn"
+    <Button
+      variant="outline"
+      size="icon-sm"
       onClick={toggleTheme}
       title={theme === "dark" ? t("theme.toLight") : t("theme.toDark")}
       aria-label={theme === "dark" ? t("theme.toLight") : t("theme.toDark")}
+      className="rounded-full"
     >
-      {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-    </button>
+      {theme === "dark" ? <Sun /> : <Moon />}
+    </Button>
   );
 
   const languageSwitch = (
-    <div className="lang-switch" role="group" aria-label="Language">
-      <button
-        className={language === "en" ? "lang-btn active" : "lang-btn"}
-        onClick={() => setLanguage("en")}
-      >
-        EN
-      </button>
-      <button
-        className={language === "zh" ? "lang-btn active" : "lang-btn"}
-        onClick={() => setLanguage("zh")}
-      >
-        中文
-      </button>
+    <div
+      className="flex items-center gap-0.5 rounded-full border border-border bg-muted p-0.5"
+      role="group"
+      aria-label="Language"
+    >
+      {(
+        [
+          ["en", "EN"],
+          ["zh", "中文"],
+        ] as const
+      ).map(([code, label]) => (
+        <button
+          key={code}
+          onClick={() => setLanguage(code)}
+          className={
+            language === code
+              ? "rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
+              : "rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+          }
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 
   if (staffView) {
     return (
-      <div className="shell staff-shell">
-        <header className="topbar">
-          <div className="brand" onClick={() => navigate("/admin")}>
-            <span className="brand-mark" />
-            <div>
-              <strong>Bridge-Agents</strong>
-              <small>{t("app.tagline")}</small>
-            </div>
-          </div>
-          <span className="pill staff">{t("staff.badge")}</span>
-          <nav>
-            <button
-              className={staffView === "support" ? "nav-btn active" : "nav-btn"}
+      <div className="mx-auto min-h-dvh max-w-6xl px-3 pb-20 pt-3 sm:px-6 sm:pt-5">
+        <header className="sticky top-2 z-40 mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/85 px-3 py-2.5 shadow-sm backdrop-blur-md sm:gap-3 sm:px-4">
+          <button
+            className="flex min-w-0 items-center gap-2.5 text-left"
+            onClick={() => navigate("/admin")}
+          >
+            <span className="size-8 shrink-0 rounded-lg bg-gradient-to-br from-neutral-900 to-neutral-600 shadow-sm dark:from-indigo-500 dark:to-violet-500" />
+            <span className="min-w-0">
+              <strong className="block truncate text-sm font-semibold tracking-tight">
+                Bridge-Agents
+              </strong>
+              <small className="hidden text-[10px] tracking-[0.14em] text-muted-foreground uppercase sm:block">
+                {t("app.tagline")}
+              </small>
+            </span>
+          </button>
+          <Badge variant="outline" className="hidden sm:inline-flex">
+            {t("staff.badge")}
+          </Badge>
+          <nav className="order-3 flex w-full items-center gap-1 sm:order-none sm:ml-auto sm:w-auto">
+            <Button
+              variant={staffView === "support" ? "default" : "ghost"}
+              size="sm"
+              className="flex-1 sm:flex-none"
               onClick={() => navigate("/admin")}
             >
               {t("app.support")}
-            </button>
-            <button
-              className={staffView === "studio" ? "nav-btn active" : "nav-btn"}
+            </Button>
+            <Button
+              variant={staffView === "studio" ? "default" : "ghost"}
+              size="sm"
+              className="flex-1 sm:flex-none"
               onClick={() => navigate("/admin/studio")}
             >
               {t("app.studio")}
-            </button>
+            </Button>
           </nav>
-          {themeToggle}
-          {languageSwitch}
-          <div className="version">v0.1.0</div>
+          <div className="ml-auto flex items-center gap-2 sm:ml-0">
+            {themeToggle}
+            {languageSwitch}
+            <span className="hidden text-xs text-muted-foreground sm:inline">v0.1.0</span>
+          </div>
         </header>
         <main>
           {staffView === "support" && <AdminPage />}
@@ -141,19 +153,27 @@ export default function App() {
   }
 
   return (
-    <div className="shell customer-shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark" />
-          <div>
-            <strong>Bridge-Agents</strong>
-            <small>{t("app.tagline")}</small>
-          </div>
+    <div className="mx-auto min-h-dvh max-w-4xl px-3 pb-16 pt-3 sm:px-6 sm:pt-5">
+      <header className="sticky top-2 z-40 mb-4 flex items-center gap-2 rounded-xl border border-border bg-background/85 px-3 py-2.5 shadow-sm backdrop-blur-md sm:gap-3 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="size-8 shrink-0 rounded-lg bg-gradient-to-br from-neutral-900 to-neutral-600 shadow-sm dark:from-indigo-500 dark:to-violet-500" />
+          <span className="min-w-0">
+            <strong className="block truncate text-sm font-semibold tracking-tight">
+              Bridge-Agents
+            </strong>
+            <small className="hidden text-[10px] tracking-[0.14em] text-muted-foreground uppercase sm:block">
+              {t("app.tagline")}
+            </small>
+          </span>
         </div>
-        <span className="customer-label muted small">{t("customer.areaLabel")}</span>
-        {themeToggle}
-        {languageSwitch}
-        <div className="version">v0.1.0</div>
+        <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">
+          {t("customer.areaLabel")}
+        </span>
+        <div className="ml-auto flex items-center gap-2 sm:ml-0">
+          {themeToggle}
+          {languageSwitch}
+          <span className="hidden text-xs text-muted-foreground sm:inline">v0.1.0</span>
+        </div>
       </header>
       <main>
         <ChatPage />

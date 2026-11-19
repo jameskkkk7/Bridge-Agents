@@ -5,7 +5,7 @@ import "@fontsource-variable/roboto-mono";
 import App from "./App";
 import { LanguageProvider } from "./i18n";
 import { ThemeProvider } from "./theme";
-import "./styles.css";
+import "./index.css";
 
 const container = document.getElementById("root");
 if (!container) {

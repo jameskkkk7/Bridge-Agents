@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { RefreshCw, Send } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AdminSession,
   AdminSessionList,
@@ -8,9 +14,9 @@ import {
   MessageRecord,
   putJson,
   tokenFor,
-} from "../api";
-import { useLanguage } from "../i18n";
-import { ChatSocket, ConnState } from "../ws";
+} from "@/api";
+import { useLanguage } from "@/i18n";
+import { ChatSocket, ConnState } from "@/ws";
 
 function toRecord(event: Record<string, unknown>): MessageRecord {
   return {
@@ -23,6 +29,13 @@ function toRecord(event: Record<string, unknown>): MessageRecord {
     created_at: String(event.created_at ?? ""),
   };
 }
+
+const STATUS_VARIANT: Record<ConnState, "success" | "warning" | "destructive" | "secondary"> = {
+  connecting: "warning",
+  online: "success",
+  reconnecting: "warning",
+  offline: "destructive",
+};
 
 export default function AdminPage() {
   const { t, systemText, language } = useLanguage();
@@ -121,7 +134,7 @@ export default function AdminPage() {
       if (window.innerWidth <= 900) {
         window.setTimeout(() => {
           document
-            .querySelector(".admin-grid .card.column:last-child")
+            .querySelector("[data-conversation-panel]")
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 80);
       }
@@ -186,114 +199,163 @@ export default function AdminPage() {
     }
   };
 
-  const statusLabel = (status: string) =>
-    t(`admin.status.${status}`) === `admin.status.${status}` ? status : t(`admin.status.${status}`);
+  const statusVariant = (status: string) =>
+    status === "active" ? "success" : status === "archived" ? "warning" : "secondary";
   const composerEnabled = Boolean(selected?.human_takeover && selected?.status !== "closed");
 
   return (
-    <section className="page">
-      <div className="card page-head">
+    <div className="flex flex-col gap-3">
+      <Card className="flex flex-row flex-wrap items-center justify-between gap-3 px-5 py-4">
         <div>
-          <h2>{t("admin.title")}</h2>
-          <p className="muted small">{t("admin.subtitle")}</p>
+          <h1 className="text-xl font-semibold tracking-tight">{t("admin.title")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("admin.subtitle")}</p>
         </div>
-        <div className="row">
-          {selected && <span className={`status ${connection}`}>{t(`status.${connection}`)}</span>}
-          <button
-            className="ghost"
+        <div className="flex items-center gap-2">
+          {selected && (
+            <Badge variant={STATUS_VARIANT[connection]}>{t(`status.${connection}`)}</Badge>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() =>
               void loadSessions(tokenRef.current).catch((caught) => setError(errorText(caught)))
             }
           >
+            <RefreshCw />
             {t("common.refresh")}
-          </button>
+          </Button>
         </div>
-      </div>
-      {error && <div className="banner error">{error}</div>}
-      {notice && <div className="banner success">{notice}</div>}
-      <div className="admin-grid">
-        <div className="card column">
-          <div className="table-head">
-            <h3>{t("admin.conversations")}</h3>
-            <span className="muted small">{t("admin.shown", { count: sessions.length })}</span>
+      </Card>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+      {notice && (
+        <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
+          {notice}
+        </div>
+      )}
+
+      <div className="grid items-start gap-3 lg:grid-cols-[1.05fr_1fr]">
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
+            <h2 className="text-sm font-semibold">{t("admin.conversations")}</h2>
+            <span className="text-xs text-muted-foreground">
+              {t("admin.shown", { count: sessions.length })}
+            </span>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>{t("admin.colCustomer")}</th>
-                <th>{t("admin.colStatus")}</th>
-                <th>{t("admin.colAI")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((session) => (
-                <tr
-                  key={session.id}
-                  className={selected?.id === session.id ? "selected" : ""}
-                  onClick={() => void open(session)}
-                >
-                  <td>
-                    <strong>{session.user_email ?? session.user_id.slice(0, 8)}</strong>
-                    <span className="muted small block">{session.title}</span>
-                  </td>
-                  <td><span className={`pill ${session.status}`}>{statusLabel(session.status)}</span></td>
-                  <td>
-                    {session.human_takeover ? (
-                      <span className="pill takeover">{t("admin.badgeHuman")}</span>
-                    ) : (
-                      <span className="pill ai">{t("admin.badgeAssistant")}</span>
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] tracking-wide text-muted-foreground uppercase">
+                  <th className="px-5 py-2 font-medium">{t("admin.colCustomer")}</th>
+                  <th className="px-2 py-2 font-medium">{t("admin.colStatus")}</th>
+                  <th className="hidden px-2 py-2 font-medium sm:table-cell">
+                    {t("admin.colAI")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="card column">
-          <div className="table-head">
-            <h3>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {sessions.map((session) => (
+                  <tr
+                    key={session.id}
+                    onClick={() => void open(session)}
+                    className={
+                      selected?.id === session.id
+                        ? "cursor-pointer bg-primary/5"
+                        : "cursor-pointer hover:bg-muted/60"
+                    }
+                  >
+                    <td className="max-w-[220px] px-5 py-3">
+                      <strong className="block truncate text-sm font-medium">
+                        {session.user_email ?? session.user_id.slice(0, 8)}
+                      </strong>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {session.title}
+                      </span>
+                    </td>
+                    <td className="px-2 py-3">
+                      <Badge variant={statusVariant(session.status)}>
+                        {t(`admin.status.${session.status}`)}
+                      </Badge>
+                    </td>
+                    <td className="hidden px-2 py-3 sm:table-cell">
+                      {session.human_takeover ? (
+                        <Badge variant="warning">{t("admin.badgeHuman")}</Badge>
+                      ) : (
+                        <Badge variant="accent">{t("admin.badgeAssistant")}</Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card data-conversation-panel className="flex flex-col gap-3 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="min-w-0 truncate text-sm font-semibold">
               {selected
                 ? t("admin.conversation", {
                     name: (selected.user_email ?? selected.id).slice(0, 22),
                   })
                 : t("admin.pick")}
-            </h3>
+            </h2>
             {selected && (
-              <div className="row">
-                <button
-                  className={selected.human_takeover ? "ghost" : "primary"}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={selected.human_takeover ? "outline" : "default"}
+                  size="sm"
                   onClick={() => void takeover()}
                 >
                   {selected.human_takeover ? t("admin.release") : t("admin.takeOver")}
-                </button>
-                <button
-                  className="ghost"
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={selected.status === "closed"}
                   onClick={() => void close()}
                 >
                   {t("common.close")}
-                </button>
+                </Button>
               </div>
             )}
           </div>
-          {!selected && <p className="empty">{t("admin.pickHint")}</p>}
+
+          {!selected && (
+            <p className="py-8 text-center text-sm text-muted-foreground">{t("admin.pickHint")}</p>
+          )}
+
           {selected && (
             <>
-              <div className="transcript">
-                {messages.length === 0 && <p className="muted small">{t("admin.noMessages")}</p>}
+              <div className="scrollbar-thin max-h-[46dvh] overflow-y-auto lg:max-h-[58vh]">
+                {messages.length === 0 && (
+                  <p className="py-6 text-sm text-muted-foreground">{t("admin.noMessages")}</p>
+                )}
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`transcript-row ${message.sender_type} ${message.message_type}`}
+                    className="grid grid-cols-[46px_1fr] gap-2 border-b border-border py-2 text-sm last:border-0 sm:grid-cols-[74px_1fr] sm:gap-3"
                   >
-                    <span className="who">
+                    <span
+                      className={
+                        message.sender_type === "agent"
+                          ? "text-[11px] tracking-wider text-primary uppercase"
+                          : message.message_type === "system"
+                            ? "text-[11px] tracking-wider text-warning uppercase"
+                            : "text-[11px] tracking-wider text-muted-foreground uppercase"
+                      }
+                    >
                       {message.message_type === "system"
                         ? t("admin.system")
                         : message.sender_type === "user"
                           ? t("admin.user")
                           : t("admin.agent")}
                     </span>
-                    <span className="what">
+                    <span className="leading-relaxed break-words whitespace-pre-wrap">
                       {message.message_type === "image"
                         ? `[${t("common.image")}]`
                         : message.message_type === "system"
@@ -304,14 +366,16 @@ export default function AdminPage() {
                 ))}
                 <div ref={bottomRef} />
               </div>
-              <div className="admin-composer">
-                <textarea
+
+              <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-end">
+                <Textarea
                   value={draft}
                   rows={2}
                   placeholder={
                     composerEnabled ? t("admin.placeholderEnabled") : t("admin.placeholderDisabled")
                   }
                   disabled={!composerEnabled}
+                  className="min-h-12 resize-none rounded-xl"
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
@@ -320,14 +384,20 @@ export default function AdminPage() {
                     }
                   }}
                 />
-                <button className="primary" disabled={!composerEnabled} onClick={send}>
-                  {t("admin.sendReply")}
-                </button>
+                <Button
+                  className="shrink-0"
+                  disabled={!composerEnabled}
+                  onClick={send}
+                  aria-label={t("admin.sendReply")}
+                >
+                  <Send />
+                  <span className="hidden sm:inline">{t("admin.sendReply")}</span>
+                </Button>
               </div>
             </>
           )}
-        </div>
+        </Card>
       </div>
-    </section>
+    </div>
   );
 }
