@@ -1,4 +1,4 @@
-/** Top-down level layout: the main flow goes down, siblings spread horizontally. */
+/** Left-to-right level layout: the main flow goes right, siblings stack vertically. */
 export interface LayoutNode {
   id: string;
   config?: Record<string, unknown> | null;
@@ -14,10 +14,10 @@ export interface Point {
   y: number;
 }
 
-const COLUMN_GAP = 260;
-const ROW_GAP = 140;
-const TOP = 80;
-const CENTER = 420;
+const COLUMN_GAP = 220;
+const ROW_GAP = 150;
+const LEFT = 70;
+const CENTER_Y = 210;
 const GRID = 20;
 
 function snap(value: number): number {
@@ -51,7 +51,7 @@ function depths(nodes: LayoutNode[], edges: LayoutEdge[], startId?: string): Map
 }
 
 /**
- * Compute vertical levels. When `preserve` is true, existing x/y coordinates
+ * Compute horizontal levels. When `preserve` is true, existing x/y coordinates
  * are kept and only unpositioned nodes are placed; otherwise every node moves
  * to its level (the "auto layout" action).
  */
@@ -79,11 +79,11 @@ export function computeLayout(
     levels.set(level, group);
   }
   for (const [level, ids] of levels) {
-    const offset = ((ids.length - 1) * COLUMN_GAP) / 2;
+    const offset = ((ids.length - 1) * ROW_GAP) / 2;
     ids.forEach((id, index) => {
       positions.set(id, {
-        x: snap(CENTER - offset + index * COLUMN_GAP),
-        y: snap(TOP + level * ROW_GAP),
+        x: snap(LEFT + level * COLUMN_GAP),
+        y: snap(CENTER_Y - offset + index * ROW_GAP),
       });
     });
   }

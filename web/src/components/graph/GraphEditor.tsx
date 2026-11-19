@@ -103,6 +103,7 @@ export default function GraphEditor({ token }: { token: string }) {
     ReactFlowInstance<GraphFlowNode, GraphFlowEdge> | null
   >(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const inspectorRef = useRef<HTMLDivElement>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -140,6 +141,17 @@ export default function GraphEditor({ token }: { token: string }) {
   }, [loading, instance, nodes.length]);
 
   const selectedNode = nodes.find((node) => node.id === selectedId) ?? null;
+
+  // The inspector sits below the canvas; make sure selecting a node reveals
+  // its settings instead of leaving the operator looking at the canvas.
+  useEffect(() => {
+    if (!selectedId) return;
+    const element = inspectorRef.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    if (rect.top < window.innerHeight - 120) return;
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedId]);
 
   const onSelectionChange = useCallback((params: OnSelectionChangeParams) => {
     setSelectedId(params.nodes[0]?.id ?? null);
@@ -332,7 +344,7 @@ export default function GraphEditor({ token }: { token: string }) {
         </div>
       )}
 
-      <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="flex flex-col gap-3">
         <Card className="overflow-hidden">
           <div className="flex flex-wrap items-center gap-1.5 border-b border-border p-3">
             <Badge variant="outline" className="mr-1">
@@ -358,7 +370,7 @@ export default function GraphEditor({ token }: { token: string }) {
               );
             })}
           </div>
-          <div ref={canvasRef} className="h-[58vh] min-h-[420px] w-full">
+          <div ref={canvasRef} className="h-[52vh] min-h-[420px] w-full">
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -389,12 +401,14 @@ export default function GraphEditor({ token }: { token: string }) {
           </div>
         </Card>
 
-        <NodeInspector
-          node={selectedNode}
-          tools={tools}
-          onChange={updateNode}
-          onDelete={deleteNode}
-        />
+        <div ref={inspectorRef}>
+          <NodeInspector
+            node={selectedNode}
+            tools={tools}
+            onChange={updateNode}
+            onDelete={deleteNode}
+          />
+        </div>
       </div>
     </div>
   );
