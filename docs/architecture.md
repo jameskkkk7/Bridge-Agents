@@ -303,6 +303,7 @@ credentials.
 | `AGENT_INJECTION_PATTERNS` | empty | Empty uses the built-in guard |
 | `WS_MAX_CONNECTIONS` | `10000` | Maximum concurrent websocket connections |
 | `KNOWLEDGE_DIR` / `DOCS_DIR` | `./data/knowledge` / `docs/kb` | Knowledge base storage and seed directory |
+| `WEB_DIST_DIR` | `web/dist` | Built web UI served by the API; empty disables static serving |
 | `RAG_ENABLED` | `true` | Turns retrieval off for graphs that do not need it |
 | `RAG_EMBEDDER` | `hash` | `hash` (offline, deterministic) or `openai` (`/v1/embeddings`) |
 | `RAG_EMBEDDING_MODEL` | `text-embedding-3-small` | Model name sent to the embeddings endpoint |
@@ -454,7 +455,7 @@ uv run ruff format --check .                                                # cl
 uv run python scripts/check_sanitized.py                                    # exit 0
 ```
 
-Current snapshot: **295 tests** collected, **91%** combined line coverage of
+Current snapshot: **302 tests** collected, **91%** combined line coverage of
 `app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
 clean, and the repository sanitisation gate passes. The tree today is 4,188
 lines of application Python, a 2,765-line library, 4,317 lines of tests and a
@@ -485,12 +486,13 @@ app/
   services/     sessions, messages, images, reply engine/handler, runtime config, takeover
   services/channels/  channel abstraction and the Lark adapter
   ws/           websocket gateway (subscriptions, streaming, rate limiting)
+  cli.py        `bridge-agents` CLI: demo, serve, init-db, doctor, version
   main.py       application factory and lifespan wiring
 packages/bridge_agents/  standalone core library (agent runtime, auth, guard, rate limit)
-tests/          295 offline tests (fake model, fake compiled graph, mock Lark transport)
+tests/          302 offline tests (fake model, fake compiled graph, mock Lark transport)
 docs/kb/        fictional product documentation used by the search tool
 docs/assets/    documentation artwork
-scripts/        init_db.py, check_sanitized.py, allowlist
+scripts/        init_db.py, demo.py, check_sanitized.py, allowlist
 Dockerfile      api image (non-root, healthcheck)
 docker-compose.yml  api + mock-llm + web (+ optional mysql profile)
 mock/           deterministic OpenAI-compatible mock model

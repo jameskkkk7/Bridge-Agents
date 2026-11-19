@@ -83,11 +83,15 @@ conversations, with a deterministic offline demo.
   and custom gateways) through provider presets.
 - **UI polish:** rounded dropdown menus, bilingual provider/prompt copy and a
   wider customer layout for the conversation sidebar.
+- **Developer experience:** a `bridge-agents` CLI (`demo`, `serve`, `init-db`,
+  `doctor`, `version`), a single-port mode that serves the built web UI from the
+  API, `make demo` for a one-command offline demo, and a Makefile with the
+  common install/test/lint/build/package tasks.
 - **Support prompt:** the shipped agent prompt is a complete customer-service
   playbook covering identity, grounded answers with citations, tone,
   policy limits, tool use, safety/privacy, human handover, formatting and
   uncertainty handling.
-- **Quality:** 295 offline tests, 91% combined line coverage of `app/core` and
+- **Quality:** 302 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
 

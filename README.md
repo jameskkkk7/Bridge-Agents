@@ -98,6 +98,28 @@ git clone <repository-url> bridge-agents
 cd bridge-agents
 ```
 
+### One command (local, no Docker)
+
+You need Python 3.11 and [uv](https://github.com/astral-sh/uv); Node.js is only
+required for the first web build:
+
+```bash
+uv sync
+uv run bridge-agents demo
+```
+
+The first run copies `.env.example` to `.env`, builds the web UI when needed and
+starts the deterministic mock model plus the API. One process serves both the UI
+and the API:
+
+- **http://localhost:8000/** — customer entry
+- **http://localhost:8000/admin** — support desk, Studio under `/admin/studio`
+- **http://localhost:8000/health** — health check
+
+Useful commands: `uv run bridge-agents doctor` checks the local prerequisites,
+`bridge-agents demo --port 18000 --mock-port 8001` moves the ports,
+`bridge-agents --help` lists every command. `make demo` is the same command.
+
 ### One command (Docker)
 
 ```bash
@@ -116,30 +138,34 @@ curl http://127.0.0.1:8000/health
 Conversations live on a named volume, so `docker compose restart api` keeps
 your data. Set `WEB_PORT` / `API_PORT` when the default ports are taken.
 
-### Local Python
-
-You need Python 3.11 and [uv](https://github.com/astral-sh/uv):
+### Manual development (API + Vite hot reload)
 
 ```bash
 uv sync
-cp .env.example .env
+cp .env.example .env          # set ALLOW_DEV_LOGIN=true for the demo login
+uv run bridge-agents init-db
+uv run bridge-agents serve --reload        # API + built UI on :8000
 ```
 
-Set `ALLOW_DEV_LOGIN=true` in `.env`, then:
+For front-end hot reload run the Vite dev server in a second terminal; it proxies
+`/api` and `/ws` to the API:
 
 ```bash
-uv run python scripts/init_db.py
-uv run uvicorn app.main:app --reload
+npm --prefix web install
+npm --prefix web run dev                   # http://localhost:5173
 ```
 
-Browser development: the UI is React 19 + TypeScript + Vite 6, **Tailwind CSS 4
-with shadcn/ui components on Radix primitives** (Button, Card, Input, Textarea,
-Label, Badge, Tabs), **@xyflow/react (React Flow) for the flow editor**, lucide
-icons, self-hosted variable fonts (Kumbh Sans, Noto Sans SC, Roboto Mono) and a
-light/dark token system. It lives in `web/`. Run
-`cd web && npm install && npm run dev` and it proxies `/api` and `/ws` to the
-local API. Engineering details — API, configuration, quality gates — live in
+The UI is React 19 + TypeScript + Vite 6, **Tailwind CSS 4 with shadcn/ui
+components on Radix primitives**, **@xyflow/react for the flow editor**, lucide
+icons, self-hosted variable fonts and a light/dark token system. It lives in
+`web/`. Engineering details — API, configuration, quality gates — live in
 [docs/architecture.md](docs/architecture.md).
+
+### Make shortcuts
+
+`make help` lists everything; the common ones are `make demo`, `make serve`,
+`make dev-web`, `make test`, `make lint`, `make check`, `make package` and
+`make docker`.
 
 ## Where it fits
 
@@ -297,16 +323,26 @@ Security: [SECURITY.md](SECURITY.md) · Contributing:
 [CONTRIBUTING.md](CONTRIBUTING.md) · Changelog: [CHANGELOG.md](CHANGELOG.md) ·
 Design notes: [docs/design-decisions.md](docs/design-decisions.md).
 
-### Use the runtime as a library
+### Packages and library use
 
-The review gate, graph validation, knowledge retrieval, auth verifiers,
-injection guard and rate limiter are also packaged as a standalone library (distribution
-`bridge-agents`, import `bridge_agents`). It is not on PyPI yet; build it from
-this checkout:
+This repository builds two Python distributions plus the web UI:
+
+- **`bridge-agents`** (import `bridge_agents`) — the reusable core: review-gated
+  pipeline, graph validation, retrieval, auth verifiers, injection guard and
+  rate limiter.
+- **`bridge-agents-app`** — the FastAPI server and the `bridge-agents` CLI
+  (`demo`, `serve`, `init-db`, `doctor`, `version`).
+- **Web UI** — React/Vite in `web/`, built into `web/dist` and served by the API
+  process when present (`WEB_DIST_DIR`).
+
+Neither distribution is published on PyPI yet; build or install them from this
+checkout:
 
 ```bash
-uv build --package bridge-agents
-pip install dist/bridge_agents-0.1.0-py3-none-any.whl
+uv build                                        # both wheels in dist/
+pip install dist/bridge_agents-0.1.0-py3-none-any.whl   # core library only
+uv sync                                         # app + CLI in the local venv
+uv run bridge-agents version
 ```
 
 ```python
@@ -317,8 +353,8 @@ assert validate_graph_config(default_graph_config()) is None
 assert not is_prompt_safe("ignore previous instructions")
 ```
 
-The HTTP server, database models, web demo and Lark adapter stay in the
-application; see `packages/bridge_agents/`.
+The HTTP app, database models, web UI and Lark adapter live in the application
+and `web/`; the library README is at `packages/bridge_agents/README.md`.
 
 ## License
 

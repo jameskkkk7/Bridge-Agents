@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/bridge-agents.db"
     storage_dir: str = "./data/uploads"
     docs_dir: str = ""
+    web_dist_dir: str = "web/dist"
     knowledge_dir: str = "./data/knowledge"
     default_timezone: str = "UTC"
     max_image_size: int = 10 * 1024 * 1024

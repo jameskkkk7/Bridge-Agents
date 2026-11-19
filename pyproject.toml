@@ -38,6 +38,9 @@ dependencies = [
     "bridge-agents",
 ]
 
+[project.scripts]
+bridge-agents = "app.cli:main"
+
 [tool.uv.sources]
 bridge-agents = { workspace = true }
 

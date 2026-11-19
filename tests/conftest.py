@@ -22,6 +22,7 @@ os.environ.update(
         "STORAGE_DIR": str(TMP_DIR / "uploads"),
         "DOCS_DIR": str(REPO_ROOT / "docs" / "kb"),
         "KNOWLEDGE_DIR": str(TMP_DIR / "knowledge"),
+        "WEB_DIST_DIR": str(TMP_DIR / "web-dist-absent"),
         "RAG_EMBEDDER": "hash",
         "ALLOWED_HOSTS": "*",
         "AUTH_VERIFIER": "hs256",
