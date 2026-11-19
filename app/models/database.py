@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from pathlib import Path
 
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -48,6 +49,17 @@ async def init_db() -> None:
 
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        # SQLAlchemy create_all does not add columns to existing tables; keep
+        # local demo databases working across upgrades.
+        table_names = await connection.run_sync(lambda sync: inspect(sync).get_table_names())
+        if "users" in table_names:
+            columns = await connection.run_sync(
+                lambda sync: {column["name"] for column in inspect(sync).get_columns("users")}
+            )
+            if "display_name" not in columns:
+                await connection.execute(
+                    text("ALTER TABLE users ADD COLUMN display_name VARCHAR(80)")
+                )
 
 
 async def dispose_engine() -> None:

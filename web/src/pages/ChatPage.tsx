@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import ChatComposer from "@/components/chat-composer";
+import NicknameGate from "@/components/nickname-gate";
 import ChatHeader from "@/components/chat-header";
 import ChatTranscript from "@/components/chat-transcript";
 import type { ViewMessage } from "@/components/chat-transcript";
@@ -23,6 +24,8 @@ import { translate, useLanguage } from "@/i18n";
 import { ChatSocket, ConnState, ServerEvent } from "@/ws";
 
 const ACTIVE_SESSION_KEY = "bridge-agents.active-session";
+const CLIENT_ID_KEY = "bridge-agents.client-id";
+const CUSTOMER_NAME_KEY = "bridge-agents.customer-name";
 const MAX_TITLE_CHARS = 40;
 const DEFAULT_TITLES = new Set([
   "新对话",
@@ -31,6 +34,15 @@ const DEFAULT_TITLES = new Set([
   "Demo conversation",
   "New conversation",
 ]);
+
+function newClientId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // crypto.randomUUID is only available in secure contexts; LAN demos run on
+  // plain http, so fall back to a random demo id.
+  return `demo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 function viewMessage(record: MessageRecord): ViewMessage {
   return record.message_type === "image"
@@ -54,6 +66,11 @@ function viewMessage(record: MessageRecord): ViewMessage {
 
 export default function ChatPage() {
   const { language, t } = useLanguage();
+  const [profile, setProfile] = useState<{ clientId: string; name: string } | null>(() => {
+    const clientId = localStorage.getItem(CLIENT_ID_KEY);
+    const name = localStorage.getItem(CUSTOMER_NAME_KEY);
+    return clientId && name ? { clientId, name } : null;
+  });
   const [connection, setConnection] = useState<ConnState>("connecting");
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [active, setActive] = useState<SessionRecord | null>(null);
@@ -268,6 +285,16 @@ export default function ChatPage() {
     }
   };
 
+  const startChat = (name: string) => {
+    let clientId = localStorage.getItem(CLIENT_ID_KEY);
+    if (!clientId) {
+      clientId = newClientId();
+      localStorage.setItem(CLIENT_ID_KEY, clientId);
+    }
+    localStorage.setItem(CUSTOMER_NAME_KEY, name);
+    setProfile({ clientId, name });
+  };
+
   const newConversation = async () => {
     try {
       const created = await postJson<SessionRecord>(
@@ -283,10 +310,12 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
+    if (!profile) return;
     let cancelled = false;
+    setBooting(true);
     void (async () => {
       try {
-        const token = await tokenFor("user");
+        const token = await tokenFor("user", profile);
         tokenRef.current = token;
         const list = await getJson<SessionList>("/sessions?limit=50", token);
         if (cancelled) return;
@@ -322,7 +351,11 @@ export default function ChatPage() {
       socketRef.current?.close();
       socketRef.current = null;
     };
-  }, []);
+  }, [profile]);
+
+  if (!profile) {
+    return <NicknameGate onStart={startChat} />;
+  }
 
   return (
     <div className="grid gap-3 md:grid-cols-[250px_minmax(0,1fr)] md:items-start">
@@ -342,6 +375,7 @@ export default function ChatPage() {
       <div className="flex min-w-0 flex-col gap-3">
         <ChatHeader
           title={active ? active.title : t("chat.connecting")}
+          customerName={profile.name}
           toolNote={toolNote}
           connection={connection}
         />

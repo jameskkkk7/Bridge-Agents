@@ -751,6 +751,8 @@ class LangGraphPipeline(AgentPipeline):
                     converted.append(HumanMessage(content=text, id=str(uuid4())))
             elif role == "assistant":
                 converted.append(AIMessage(content=raw.get("content", ""), id=str(uuid4())))
+            elif role == "system":
+                converted.append(SystemMessage(content=raw.get("content", ""), id=str(uuid4())))
         return converted
 
     async def invoke(self, state: dict, config: dict | None = None) -> dict:

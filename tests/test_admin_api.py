@@ -150,3 +150,25 @@ async def test_user_directory_is_admin_only(db_session) -> None:
         body = response.json()
         assert body["total"] >= 2
         assert any(item["id"] == admin.id for item in body["items"])
+
+
+async def test_admin_conversation_shows_customer_nickname(db_session) -> None:
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import create_app
+    from tests.helpers import create_session, create_user
+
+    customer = await create_user(db_session, "admin-api-nickname@example.test")
+    customer.display_name = "小明"
+    await db_session.commit()
+    session = await create_session(db_session, customer)
+    _, agent_headers = await _staff(db_session, Role.AGENT, "admin-api-nick3@example.test")
+
+    app = create_app()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        listed = await client.get("/api/v1/admin/sessions", headers=agent_headers)
+        assert listed.status_code == 200
+        item = next(row for row in listed.json()["items"] if row["id"] == session.id)
+        assert item["customer_name"] == "小明"

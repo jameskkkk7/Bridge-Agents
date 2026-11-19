@@ -25,6 +25,7 @@ class User(BaseModel):
     __tablename__ = "users"
 
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     role: Mapped[Role] = mapped_column(
         Enum(Role, native_enum=False, length=16, values_callable=_role_values),
         default=Role.USER,

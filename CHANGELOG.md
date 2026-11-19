@@ -71,6 +71,9 @@ conversations, with a deterministic offline demo.
 - **Demo chat experience:** reference-style composer with attachment sending,
   a conversation-history sidebar with multiple conversations, automatic titles
   from the first message, and a no-sign-in demo mode.
+- **Demo customer identity:** customers enter a nickname before chatting; each
+  browser receives an isolated demo account, the support desk shows the
+  nickname and the assistant addresses the customer by name.
 - **Support desk clarity:** AI replies and human teammate replies are labelled
   separately (`sender_kind` in the API and transcript), with an AI/human mode
   badge per conversation.
@@ -84,7 +87,7 @@ conversations, with a deterministic offline demo.
   playbook covering identity, grounded answers with citations, tone,
   policy limits, tool use, safety/privacy, human handover, formatting and
   uncertainty handling.
-- **Quality:** 290 offline tests, 91% combined line coverage of `app/core` and
+- **Quality:** 295 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
 

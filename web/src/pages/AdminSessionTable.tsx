@@ -41,7 +41,7 @@ export default function AdminSessionTable({
             >
               <td className="max-w-[220px] px-5 py-3">
                 <strong className="block truncate text-sm font-medium">
-                  {session.user_email ?? session.user_id.slice(0, 8)}
+                  {session.customer_name ?? session.user_email ?? session.user_id.slice(0, 8)}
                 </strong>
                 <span className="block truncate text-xs text-muted-foreground">
                   {session.title}

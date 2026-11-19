@@ -14,6 +14,7 @@ class AdminSessionItem(BaseModel):
     id: str
     user_id: str
     user_email: str | None = None
+    customer_name: str | None = None
     title: str
     status: str
     human_takeover: bool = False

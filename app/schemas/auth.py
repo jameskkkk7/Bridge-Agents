@@ -17,6 +17,7 @@ class UserResponse(BaseModel):
     id: str
     role: str
     email: str | None = None
+    display_name: str | None = None
 
 
 class MeResponse(UserResponse):

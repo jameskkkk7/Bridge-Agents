@@ -319,7 +319,7 @@ export default function AdminPage() {
             <h2 className="min-w-0 truncate text-sm font-semibold">
               {selected
                 ? t("admin.conversation", {
-                    name: (selected.user_email ?? selected.id).slice(0, 22),
+                    name: (selected.customer_name ?? selected.user_email ?? selected.id).slice(0, 22),
                   })
                 : t("admin.pick")}
             </h2>

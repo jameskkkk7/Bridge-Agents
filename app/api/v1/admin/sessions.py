@@ -31,6 +31,7 @@ def _session_item(session) -> AdminSessionItem:
         id=session.id,
         user_id=session.user_id,
         user_email=user.email if user else None,
+        customer_name=(user.display_name or user.email) if user else None,
         title=session.title,
         status=session.status.value,
         human_takeover=session.human_takeover,

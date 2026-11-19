@@ -41,12 +41,35 @@ class UserService:
         await self.db.refresh(user)
         return user
 
-    async def get_or_create_dev_user(self, role: Role) -> User:
-        """Return the stable demo account for one role.
+    async def get_or_create_dev_user(
+        self,
+        role: Role,
+        *,
+        client_id: str | None = None,
+        display_name: str | None = None,
+    ) -> User:
+        """Return a stable demo account for one role.
 
-        Demo identities are separate accounts, so switching roles in the demo
-        never mutates a stored role.
+        Customers pass a browser-scoped ``client_id`` plus the nickname they
+        entered, so each demo visitor gets a separate account (their own
+        conversation list) while support staff keep using the shared role
+        accounts. Switching roles never mutates a stored role.
         """
+        if role is Role.USER and client_id:
+            email = f"demo-{client_id}@bridge-agents.local"
+            existing = await self.get_by_email(email)
+            if existing is not None:
+                if display_name and existing.display_name != display_name:
+                    existing.display_name = display_name
+                    await self.db.commit()
+                    await self.db.refresh(existing)
+                return existing
+            user = User(email=email, role=role, display_name=display_name)
+            self.db.add(user)
+            await self.db.commit()
+            await self.db.refresh(user)
+            return user
+
         email = f"dev-{role.value.lower()}@bridge-agents.local"
         existing = await self.get_by_email(email)
         if existing is not None:

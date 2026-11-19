@@ -140,3 +140,38 @@ async def test_role_gates_protect_staff_and_admin_endpoints(client: AsyncClient,
     assert (
         await client.get("/_test/admin", headers=_bearer(admin["access_token"]))
     ).status_code == 200
+
+
+async def test_demo_customers_get_isolated_accounts_by_nickname(client: AsyncClient) -> None:
+    first = await client.post(
+        "/api/v1/auth/dev-login",
+        params={"role": "user", "client_id": "browser-aaaa1111", "name": "Alice"},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["user"]["display_name"] == "Alice"
+
+    second = await client.post(
+        "/api/v1/auth/dev-login",
+        params={"role": "user", "client_id": "browser-aaaa1111", "name": "Alice Chen"},
+    )
+    assert second.status_code == 200
+    assert second.json()["user"]["id"] == first.json()["user"]["id"]
+    assert second.json()["user"]["display_name"] == "Alice Chen"
+
+    other = await client.post(
+        "/api/v1/auth/dev-login",
+        params={"role": "user", "client_id": "browser-bbbb2222", "name": "Bob"},
+    )
+    assert other.status_code == 200
+    assert other.json()["user"]["id"] != first.json()["user"]["id"]
+    assert other.json()["user"]["display_name"] == "Bob"
+
+
+async def test_demo_customer_client_id_is_validated(client: AsyncClient) -> None:
+    bad = await client.post("/api/v1/auth/dev-login", params={"role": "user", "client_id": "short"})
+    assert bad.status_code == 422
+    blank_name = await client.post(
+        "/api/v1/auth/dev-login",
+        params={"role": "user", "client_id": "browser-cccc3333", "name": "   "},
+    )
+    assert blank_name.status_code == 422

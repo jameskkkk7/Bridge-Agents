@@ -146,3 +146,12 @@ async def test_drain_waits_for_running_tasks(db_session, monkeypatch) -> None:
         await reply_engine.drain_reply_tasks(timeout=2.0)
 
     assert await _stored_messages(session.id)
+
+
+def test_state_messages_add_customer_nickname_note() -> None:
+    from app.services.reply_engine import _build_state_messages
+
+    messages = _build_state_messages([], "hello", {}, "小明")
+    assert messages[0]["role"] == "system"
+    assert "小明" in messages[0]["content"]
+    assert messages[-1] == {"role": "user", "content": "hello"}

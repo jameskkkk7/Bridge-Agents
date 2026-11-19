@@ -103,3 +103,25 @@ async def test_takeover_flag_is_exposed(client: AsyncClient, db_session: AsyncSe
 
     fetched = await client.get(f"/api/v1/sessions/{session.id}", headers=token)
     assert fetched.json()["human_takeover"] is True
+
+
+async def test_demo_customers_do_not_see_each_others_conversations(client: AsyncClient) -> None:
+    alice = await client.post(
+        "/api/v1/auth/dev-login",
+        params={"role": "user", "client_id": "browser-alice-1111", "name": "Alice"},
+    )
+    bob = await client.post(
+        "/api/v1/auth/dev-login",
+        params={"role": "user", "client_id": "browser-bob-2222", "name": "Bob"},
+    )
+    alice_headers = bearer(alice.json()["access_token"])
+    bob_headers = bearer(bob.json()["access_token"])
+    created = await client.post(
+        "/api/v1/sessions", json={"title": "Alice refund"}, headers=alice_headers
+    )
+    assert created.status_code == 201
+
+    alice_list = await client.get("/api/v1/sessions", headers=alice_headers)
+    bob_list = await client.get("/api/v1/sessions", headers=bob_headers)
+    assert any(item["id"] == created.json()["id"] for item in alice_list.json()["items"])
+    assert bob_list.json()["total"] == 0

@@ -454,7 +454,7 @@ uv run ruff format --check .                                                # cl
 uv run python scripts/check_sanitized.py                                    # exit 0
 ```
 
-Current snapshot: **290 tests** collected, **91%** combined line coverage of
+Current snapshot: **295 tests** collected, **91%** combined line coverage of
 `app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
 clean, and the repository sanitisation gate passes. The tree today is 4,188
 lines of application Python, a 2,765-line library, 4,317 lines of tests and a
@@ -487,7 +487,7 @@ app/
   ws/           websocket gateway (subscriptions, streaming, rate limiting)
   main.py       application factory and lifespan wiring
 packages/bridge_agents/  standalone core library (agent runtime, auth, guard, rate limit)
-tests/          290 offline tests (fake model, fake compiled graph, mock Lark transport)
+tests/          295 offline tests (fake model, fake compiled graph, mock Lark transport)
 docs/kb/        fictional product documentation used by the search tool
 docs/assets/    documentation artwork
 scripts/        init_db.py, check_sanitized.py, allowlist

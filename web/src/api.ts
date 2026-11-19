@@ -4,6 +4,7 @@ export interface User {
   id: string;
   role: string;
   email?: string | null;
+  display_name?: string | null;
 }
 
 export interface AuthResponse {
@@ -50,6 +51,7 @@ export interface AdminSession {
   id: string;
   user_id: string;
   user_email: string | null;
+  customer_name?: string | null;
   title: string;
   status: string;
   human_takeover: boolean;
@@ -85,11 +87,19 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
-export async function tokenFor(role: Role): Promise<string> {
-  const key = KEYS[role];
+export async function tokenFor(
+  role: Role,
+  options?: { clientId?: string; name?: string },
+): Promise<string> {
+  const key = options?.clientId ? `${KEYS[role]}.${options.clientId}` : KEYS[role];
   const cached = window.sessionStorage.getItem(key);
   if (cached) return cached;
-  const auth = await request<AuthResponse>(`/auth/dev-login?role=${role}`, { method: "POST" });
+  const params = new URLSearchParams({ role });
+  if (options?.clientId) params.set("client_id", options.clientId);
+  if (options?.name) params.set("name", options.name);
+  const auth = await request<AuthResponse>(`/auth/dev-login?${params.toString()}`, {
+    method: "POST",
+  });
   window.sessionStorage.setItem(key, auth.access_token);
   return auth.access_token;
 }
