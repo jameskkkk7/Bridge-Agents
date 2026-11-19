@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { RefreshCw, Send } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ChatComposer from "@/components/chat-composer";
 import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import {
   AdminSession,
   AdminSessionList,
   errorText,
   getJson,
+  imageBlobUrl,
+  imageIdFromContent,
   MessageList,
   MessageRecord,
   putJson,
@@ -25,6 +27,7 @@ function toRecord(event: Record<string, unknown>): MessageRecord {
     session_id: String(event.session_id ?? ""),
     sender_id: String(event.sender_id ?? ""),
     sender_type: String(event.sender_type ?? "agent"),
+    sender_kind: event.sender_kind ? String(event.sender_kind) : undefined,
     content: String(event.content ?? ""),
     message_type: String(event.message_type ?? "text"),
     created_at: String(event.created_at ?? ""),
@@ -46,8 +49,11 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [draft, setDraft] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [connection, setConnection] = useState<ConnState>("offline");
   const tokenRef = useRef("");
+  const requestedImages = useRef<Set<string>>(new Set());
   const socketRef = useRef<ChatSocket | null>(null);
   const selectedRef = useRef<AdminSession | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -93,6 +99,30 @@ export default function AdminPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
+  useEffect(() => {
+    const active = selectedRef.current;
+    if (!active) return;
+    let cancelled = false;
+    const hydrate = async () => {
+      for (const message of messages) {
+        if (message.message_type !== "image") continue;
+        const imageId = imageIdFromContent(message.content);
+        if (!imageId || requestedImages.current.has(imageId)) continue;
+        requestedImages.current.add(imageId);
+        try {
+          const url = await imageBlobUrl(active.id, imageId, tokenRef.current);
+          if (!cancelled) setImageUrls((urls) => ({ ...urls, [imageId]: url }));
+        } catch {
+          requestedImages.current.delete(imageId);
+        }
+      }
+    };
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, selected]);
+
   const connect = (session: AdminSession) => {
     closeSocket();
     const socket = new ChatSocket({
@@ -101,12 +131,14 @@ export default function AdminPage() {
         if (event.type === "message") {
           appendMessage(toRecord(event));
         } else if (event.type === "image") {
+          const imageId = String(event.image_id ?? "");
           appendMessage({
-            id: String(event.id ?? event.image_id ?? ""),
+            id: String(event.id ?? imageId ?? ""),
             session_id: String(event.session_id ?? session.id),
             sender_id: String(event.sender_id ?? ""),
-            sender_type: "user",
-            content: "[image]",
+            sender_type: String(event.sender_type ?? "user"),
+            sender_kind: String(event.sender_kind ?? "user"),
+            content: `[image] ${imageId}`,
             message_type: "image",
             created_at: String(event.created_at ?? ""),
           });
@@ -125,6 +157,8 @@ export default function AdminPage() {
     setSelected(session);
     selectedRef.current = session;
     setMessages([]);
+    setImageUrls({});
+    requestedImages.current.clear();
     try {
       const history = await getJson<MessageList>(
         `/admin/sessions/${session.id}/messages?limit=50`,
@@ -180,6 +214,34 @@ export default function AdminPage() {
     socketRef.current.sendMessage(text);
     setDraft("");
     setError("");
+  };
+
+  const uploadImage = async (file: File) => {
+    const active = selectedRef.current;
+    if (!active) return;
+    if (!active.human_takeover) {
+      setError(t("admin.needTakeover"));
+      return;
+    }
+    setUploading(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch(`/api/v1/sessions/${active.id}/images`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
+        body,
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { message?: string };
+        throw new Error(payload.message ?? t("chat.imageUploadFailed"));
+      }
+    } catch (caught) {
+      setError(errorText(caught));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const close = async () => {
@@ -263,6 +325,9 @@ export default function AdminPage() {
             </h2>
             {selected && (
               <div className="flex items-center gap-2">
+                <Badge variant={selected.human_takeover ? "warning" : "outline"}>
+                  {selected.human_takeover ? t("admin.humanMode") : t("admin.aiMode")}
+                </Badge>
                 <Button
                   variant={selected.human_takeover ? "outline" : "default"}
                   size="sm"
@@ -299,57 +364,63 @@ export default function AdminPage() {
                   >
                     <span
                       className={
-                        message.sender_type === "agent"
-                          ? "text-[11px] tracking-wider text-primary uppercase"
-                          : message.message_type === "system"
-                            ? "text-[11px] tracking-wider text-warning uppercase"
-                            : "text-[11px] tracking-wider text-muted-foreground uppercase"
+                        message.message_type === "system"
+                          ? "text-[11px] tracking-wider text-warning uppercase"
+                          : message.sender_type === "user"
+                            ? "text-[11px] tracking-wider text-muted-foreground uppercase"
+                            : message.sender_kind === "ai"
+                              ? "text-[11px] tracking-wider text-primary uppercase"
+                              : "text-[11px] tracking-wider text-success uppercase"
                       }
                     >
                       {message.message_type === "system"
                         ? t("admin.system")
                         : message.sender_type === "user"
                           ? t("admin.user")
-                          : t("admin.agent")}
+                          : message.sender_kind === "ai"
+                            ? t("admin.aiAgent")
+                            : t("admin.humanAgent")}
                     </span>
                     <span className="leading-relaxed break-words whitespace-pre-wrap">
-                      {message.message_type === "image"
-                        ? `[${t("common.image")}]`
-                        : message.message_type === "system"
-                          ? systemText(message.content)
-                          : message.content}
+                      {message.message_type === "image" ? (
+                        (() => {
+                          const imageId = imageIdFromContent(message.content);
+                          const url = imageId ? imageUrls[imageId] : undefined;
+                          return url ? (
+                            <img
+                              src={url}
+                              alt={t("chat.imageAlt")}
+                              className="max-w-[260px] rounded-xl border border-border"
+                            />
+                          ) : (
+                            <span className="text-muted-foreground">{t("chat.imageLoading")}</span>
+                          );
+                        })()
+                      ) : message.message_type === "system" ? (
+                        systemText(message.content)
+                      ) : (
+                        message.content
+                      )}
                     </span>
                   </div>
                 ))}
                 <div ref={bottomRef} />
               </div>
 
-              <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-end">
-                <Textarea
+              <div className="pt-3">
+                <ChatComposer
                   value={draft}
-                  rows={2}
                   placeholder={
                     composerEnabled ? t("admin.placeholderEnabled") : t("admin.placeholderDisabled")
                   }
+                  sendLabel={t("admin.sendReply")}
+                  attachLabel={t("common.attachImage")}
                   disabled={!composerEnabled}
-                  className="min-h-12 resize-none rounded-xl"
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      send();
-                    }
-                  }}
+                  uploading={uploading}
+                  onChange={setDraft}
+                  onSend={send}
+                  onPickImage={(file) => void uploadImage(file)}
                 />
-                <Button
-                  className="shrink-0"
-                  disabled={!composerEnabled}
-                  onClick={send}
-                  aria-label={t("admin.sendReply")}
-                >
-                  <Send />
-                  <span className="hidden sm:inline">{t("admin.sendReply")}</span>
-                </Button>
               </div>
             </>
           )}
