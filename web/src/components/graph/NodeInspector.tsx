@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import SelectMenu from "@/components/ui/select-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/i18n";
 import ProviderModerationFields from "./ProviderModerationFields";
@@ -183,15 +184,15 @@ export default function NodeInspector({
             <div className="grid grid-cols-2 gap-2">
               <div className="grid gap-1.5">
                 <Label htmlFor="node-on-block">{t("graph.field.onBlock")}</Label>
-                <select
+                <SelectMenu
                   id="node-on-block"
                   value={stringValue(config.on_block) || "fallback"}
-                  onChange={(event) => update({ on_block: event.target.value })}
-                  className="h-9 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                >
-                  <option value="fallback">{t("graph.onBlock.fallback")}</option>
-                  <option value="pass_through">{t("graph.onBlock.pass_through")}</option>
-                </select>
+                  onChange={(value) => update({ on_block: value })}
+                  options={[
+                    { value: "fallback", label: t("graph.onBlock.fallback") },
+                    { value: "pass_through", label: t("graph.onBlock.pass_through") },
+                  ]}
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="node-max-retries">{t("graph.field.maxRetries")}</Label>
