@@ -382,6 +382,7 @@ export default function GraphEditor({ token }: { token: string }) {
               onInit={setInstance}
               onNodesDelete={handleDeleteNodes}
               fitView
+              proOptions={{ hideAttribution: true }}
               fitViewOptions={{ padding: 0.2 }}
               minZoom={0.3}
               maxZoom={1.6}

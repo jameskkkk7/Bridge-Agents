@@ -37,11 +37,13 @@ export default function NodeInspector({
   const { t } = useLanguage();
   if (!node) {
     return (
-      <Card>
+      <Card className="min-h-[200px]">
         <CardHeader>
           <CardTitle>{t("graph.inspector")}</CardTitle>
-          <CardDescription>{t("graph.selectHint")}</CardDescription>
         </CardHeader>
+        <CardContent className="flex min-h-[120px] flex-1 items-center justify-center text-sm text-muted-foreground">
+          {t("graph.selectHint")}
+        </CardContent>
       </Card>
     );
   }
@@ -53,7 +55,7 @@ export default function NodeInspector({
   const selectedTools = Array.isArray(config.tools) ? (config.tools as string[]) : [];
 
   return (
-    <Card>
+    <Card className="min-h-[200px]">
       <CardHeader className="flex-row items-start justify-between gap-2">
         <div>
           <CardTitle>{t(`graph.kind.${kind}`)}</CardTitle>
