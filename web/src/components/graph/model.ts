@@ -206,7 +206,7 @@ export function configToFlow(config: GraphConfigDto): {
       labelBgStyle: conditionColor(condition)
         ? { fill: "var(--card)", opacity: 0.9 }
         : undefined,
-      type: "smoothstep",
+      type: "default",
     };
   });
   return { nodes, edges };
@@ -261,7 +261,7 @@ export function connectEdge(
     labelBgStyle: conditionColor(condition)
       ? { fill: "var(--card)", opacity: 0.9 }
       : undefined,
-    type: "smoothstep",
+    type: "default",
   };
 }
 
