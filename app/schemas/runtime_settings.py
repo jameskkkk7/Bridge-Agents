@@ -105,7 +105,7 @@ class AgentPromptView(BaseModel):
 class AgentPromptUpdate(BaseModel):
     """New agent role prompt."""
 
-    system_prompt: str = Field(min_length=1, max_length=4000)
+    system_prompt: str = Field(min_length=1, max_length=8000)
 
     @field_validator("system_prompt")
     @classmethod

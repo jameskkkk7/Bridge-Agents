@@ -253,3 +253,13 @@ async def test_unknown_provider_is_rejected(client: AsyncClient) -> None:
         headers=await _agent_headers(client),
     )
     assert response.status_code == 422
+
+
+async def test_default_agent_prompt_is_saveable(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/admin/runtime-config/agent-prompt",
+        json={"system_prompt": DEFAULT_SYSTEM_PROMPT},
+        headers=await _agent_headers(client),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["system_prompt"] == DEFAULT_SYSTEM_PROMPT

@@ -80,7 +80,11 @@ conversations, with a deterministic offline demo.
   and custom gateways) through provider presets.
 - **UI polish:** rounded dropdown menus, bilingual provider/prompt copy and a
   wider customer layout for the conversation sidebar.
-- **Quality:** 289 offline tests, 91% combined line coverage of `app/core` and
+- **Support prompt:** the shipped agent prompt is a complete customer-service
+  playbook covering identity, grounded answers with citations, tone,
+  policy limits, tool use, safety/privacy, human handover, formatting and
+  uncertainty handling.
+- **Quality:** 290 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
 
