@@ -136,7 +136,8 @@ The Flow tab is a React Flow canvas over the same JSON graph the runtime execute
   `__start__`/`__end__` ids;
 * `agent` exposes `respond` and `tool_call` source handles, `review` exposes
   `pass` and `block`; other nodes have a single source handle. A connection
-  becomes `condition` + `source_handle` in the saved JSON;
+  becomes `condition` + `source_handle` in the saved JSON. `pass` routes are
+  rendered green and `block` routes red (handles, labels and edges);
 * selecting a node opens its inspector (prompts, retrieval `top_k`/score, tool
   allow-list, sanitize words, review policy); positions are saved as `x`/`y` in
   the node config, which the runtime ignores;
