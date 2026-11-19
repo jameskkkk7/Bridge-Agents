@@ -1,4 +1,4 @@
-/** The Bridge-Agents mark: two endpoints joined by a bridge arc. */
+/** The Bridge-Agents mark: two coloured endpoints joined by a bridge arc. */
 export function BrandMark({ className = "" }: { className?: string }) {
   return (
     <span
@@ -9,16 +9,17 @@ export function BrandMark({ className = "" }: { className?: string }) {
         viewBox="0 0 24 24"
         className="size-5"
         fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M3.5 17.5c0-4.7 3.8-8.5 8.5-8.5s8.5 3.8 8.5 8.5" />
-        <path d="M3.5 17.5h17" />
-        <path d="M7.5 17.5v-2.3M16.5 17.5v-2.3" />
-        <circle cx="3.5" cy="17.5" r="1.2" fill="currentColor" stroke="none" />
-        <circle cx="20.5" cy="17.5" r="1.2" fill="currentColor" stroke="none" />
+        <path
+          d="M3.5 12.5C5.2 9 8.4 7 12 7s6.8 2 8.5 5.5"
+          stroke="rgba(255,255,255,0.78)"
+          strokeWidth="1.6"
+        />
+        <circle cx="7.4" cy="16.4" r="2.8" fill="#22d3ee" />
+        <circle cx="16.6" cy="16.4" r="2.8" fill="#a78bfa" />
+        <path d="M10.2 16.4h3.6" stroke="#f8fafc" strokeWidth="1.7" />
       </svg>
     </span>
   );
