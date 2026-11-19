@@ -1,5 +1,7 @@
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 
+import { computeLayout } from "./layout";
+
 export type GraphNodeKind =
   | "start"
   | "end"
@@ -110,54 +112,6 @@ function numberOr(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function layoutPositions(nodes: GraphNodeConfig[], edges: GraphEdgeConfig[]) {
-  const positions = new Map<string, { x: number; y: number }>();
-  const existing = new Set<string>();
-  for (const node of nodes) {
-    const x = node.config?.x;
-    const y = node.config?.y;
-    if (typeof x === "number" && typeof y === "number") {
-      positions.set(node.id, { x, y });
-      existing.add(node.id);
-    }
-  }
-
-  const start = nodes.find((node) => node.type === "start")?.id;
-  const outgoing = new Map<string, string[]>();
-  for (const edge of edges) {
-    const list = outgoing.get(edge.source) ?? [];
-    list.push(edge.target);
-    outgoing.set(edge.source, list);
-  }
-  const depth = new Map<string, number>();
-  if (start) {
-    depth.set(start, 0);
-    const queue = [start];
-    const seen = new Set([start]);
-    while (queue.length > 0) {
-      const current = queue.shift() as string;
-      for (const next of outgoing.get(current) ?? []) {
-        if (seen.has(next)) continue;
-        seen.add(next);
-        depth.set(next, (depth.get(current) ?? 0) + 1);
-        queue.push(next);
-      }
-    }
-  }
-  const perLevel = new Map<number, number>();
-  for (const node of nodes) {
-    if (existing.has(node.id)) continue;
-    const level = depth.get(node.id) ?? 0;
-    const row = perLevel.get(level) ?? 0;
-    perLevel.set(level, row + 1);
-    positions.set(node.id, {
-      x: 80 + (level % 3) * 260,
-      y: 140 + Math.floor(level / 3) * 200 + row * 120,
-    });
-  }
-  return positions;
-}
-
 export function conditionColor(condition: string | null): string | null {
   if (condition === "pass") return "var(--success)";
   if (condition === "block") return "var(--destructive)";
@@ -175,7 +129,8 @@ export function configToFlow(config: GraphConfigDto): {
   nodes: GraphFlowNode[];
   edges: GraphFlowEdge[];
 } {
-  const positions = layoutPositions(config.nodes, config.edges);
+  const startId = config.nodes.find((node) => node.type === "start")?.id;
+  const positions = computeLayout(config.nodes, config.edges, true, startId);
   const nodes: GraphFlowNode[] = config.nodes.map((node) => ({
     id: node.id,
     type: "graphNode" as const,
@@ -269,41 +224,17 @@ export function autoLayout(
   nodes: GraphFlowNode[],
   edges: GraphFlowEdge[],
 ): GraphFlowNode[] {
-  const outgoing = new Map<string, string[]>();
-  for (const edge of edges) {
-    const list = outgoing.get(edge.source) ?? [];
-    list.push(edge.target);
-    outgoing.set(edge.source, list);
-  }
-  const start = nodes.find((node) => node.data.kind === "start")?.id;
-  const depth = new Map<string, number>();
-  if (start) {
-    depth.set(start, 0);
-    const queue = [start];
-    const seen = new Set([start]);
-    while (queue.length > 0) {
-      const current = queue.shift() as string;
-      for (const next of outgoing.get(current) ?? []) {
-        if (seen.has(next)) continue;
-        seen.add(next);
-        depth.set(next, (depth.get(current) ?? 0) + 1);
-        queue.push(next);
-      }
-    }
-  }
-  const rows = new Map<number, number>();
-  return nodes.map((node) => {
-    const level = depth.get(node.id) ?? 0;
-    const row = rows.get(level) ?? 0;
-    rows.set(level, row + 1);
-    return {
-      ...node,
-      position: {
-        x: snap(80 + (level % 3) * 260),
-        y: snap(140 + Math.floor(level / 3) * 200 + row * 120),
-      },
-    };
-  });
+  const startId = nodes.find((node) => node.data.kind === "start")?.id;
+  const positions = computeLayout(
+    nodes.map((node) => ({ id: node.id, config: node.data.config })),
+    edges,
+    false,
+    startId,
+  );
+  return nodes.map((node) => ({
+    ...node,
+    position: positions.get(node.id) ?? node.position,
+  }));
 }
 
 export interface FlowIssue {

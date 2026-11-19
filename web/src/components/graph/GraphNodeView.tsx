@@ -56,7 +56,7 @@ export default function GraphNodeView({ data, selected }: NodeProps<GraphFlowNod
         selected ? "border-primary ring-2 ring-primary/30" : "border-border"
       } ${isStart || isEnd ? "opacity-90" : ""}`}
     >
-      {!isStart && <Handle type="target" position={Position.Left} className={handleClass} />}
+      {!isStart && <Handle type="target" position={Position.Top} className={handleClass} />}
 
       <div className="flex items-center gap-2">
         <span className={`flex size-8 shrink-0 items-center justify-center rounded-md ${TONES[data.kind]}`}>
@@ -81,16 +81,16 @@ export default function GraphNodeView({ data, selected }: NodeProps<GraphFlowNod
           <Handle
             id="respond"
             type="source"
-            position={Position.Right}
-            style={{ top: "35%", background: "var(--success)" }}
+            position={Position.Bottom}
+            style={{ left: "30%", background: "var(--success)" }}
             className={handleClass}
             title={t("graph.condition.respond")}
           />
           <Handle
             id="tool_call"
             type="source"
-            position={Position.Right}
-            style={{ top: "72%", background: "var(--warning)" }}
+            position={Position.Bottom}
+            style={{ left: "70%", background: "var(--warning)" }}
             className={handleClass}
             title={t("graph.condition.tool_call")}
           />
@@ -102,16 +102,16 @@ export default function GraphNodeView({ data, selected }: NodeProps<GraphFlowNod
           <Handle
             id="pass"
             type="source"
-            position={Position.Right}
-            style={{ top: "35%", background: "var(--success)" }}
+            position={Position.Bottom}
+            style={{ left: "30%", background: "var(--success)" }}
             className={handleClass}
             title={t("graph.condition.pass")}
           />
           <Handle
             id="block"
             type="source"
-            position={Position.Right}
-            style={{ top: "72%", background: "var(--destructive)" }}
+            position={Position.Bottom}
+            style={{ left: "70%", background: "var(--destructive)" }}
             className={handleClass}
             title={t("graph.condition.block")}
           />
@@ -119,7 +119,7 @@ export default function GraphNodeView({ data, selected }: NodeProps<GraphFlowNod
       )}
 
       {!isEnd && !isAgent && !isReview && (
-        <Handle type="source" position={Position.Right} className={handleClass} />
+        <Handle type="source" position={Position.Bottom} className={handleClass} />
       )}
     </div>
   );
