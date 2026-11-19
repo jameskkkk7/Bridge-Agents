@@ -22,8 +22,10 @@ conversations, with a deterministic offline demo.
   reviewer output is not leaked, and retries are bounded.
 - **Provider moderation:** the sanitize node keeps its local banned-word hard gate
   and can additionally call OpenAI-compatible `/v1/moderations`, Azure AI Content
-  Safety or Google Perspective for the latest assistant draft, with fallback text
-  and fail-open/closed policy.
+  Safety, Google Perspective, Alibaba Cloud Content Moderation or Tencent Cloud
+  TMS for the latest assistant draft, with fallback text and fail-open/closed
+  policy. The Alibaba Cloud and Tencent Cloud signers are validated against the
+  official signature examples.
 - **Auth:** HS256, RS256-PEM and JWKS verifiers behind one protocol; three roles
   (customer, support, admin); dev login only outside production.
 - **Conversations:** session, message and image APIs; WebSocket streaming with a

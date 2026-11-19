@@ -27,7 +27,11 @@ export default function ProviderModerationFields({
       ? "https://<resource>.cognitiveservices.azure.com"
       : provider === "perspective"
         ? "https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze"
-        : "https://api.openai.com/v1";
+        : provider === "aliyun"
+          ? "https://green-cip.cn-shanghai.aliyuncs.com"
+          : provider === "tencent"
+            ? "https://tms.tencentcloudapi.com"
+            : "https://api.openai.com/v1";
 
   return (
     <div className="grid gap-3 border-t border-border pt-4">
@@ -57,6 +61,8 @@ export default function ProviderModerationFields({
               <option value="openai">{t("graph.provider.openai")}</option>
               <option value="azure">{t("graph.provider.azure")}</option>
               <option value="perspective">{t("graph.provider.perspective")}</option>
+              <option value="aliyun">{t("graph.provider.aliyun")}</option>
+              <option value="tencent">{t("graph.provider.tencent")}</option>
             </select>
           </div>
           <div className="grid gap-1.5">
@@ -115,6 +121,76 @@ export default function ProviderModerationFields({
                   max={7}
                   value={numberValue(config.provider_severity, 2)}
                   onChange={(event) => update({ provider_severity: Number(event.target.value) })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="node-provider-timeout">{t("graph.field.providerTimeout")}</Label>
+                <Input
+                  id="node-provider-timeout"
+                  type="number"
+                  min={0.5}
+                  max={30}
+                  step={0.5}
+                  value={numberValue(config.provider_timeout, 5)}
+                  onChange={(event) => update({ provider_timeout: Number(event.target.value) })}
+                />
+              </div>
+            </div>
+          )}
+
+          {provider === "aliyun" && (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="node-provider-region">{t("graph.field.aliyunRegion")}</Label>
+                <Input
+                  id="node-provider-region"
+                  value={stringValue(config.provider_region)}
+                  placeholder="cn-shanghai"
+                  onChange={(event) => update({ provider_region: event.target.value })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="node-provider-service">{t("graph.field.aliyunService")}</Label>
+                <Input
+                  id="node-provider-service"
+                  value={stringValue(config.provider_service)}
+                  placeholder="comment_detection"
+                  onChange={(event) => update({ provider_service: event.target.value })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="node-provider-timeout">{t("graph.field.providerTimeout")}</Label>
+                <Input
+                  id="node-provider-timeout"
+                  type="number"
+                  min={0.5}
+                  max={30}
+                  step={0.5}
+                  value={numberValue(config.provider_timeout, 5)}
+                  onChange={(event) => update({ provider_timeout: Number(event.target.value) })}
+                />
+              </div>
+            </div>
+          )}
+
+          {provider === "tencent" && (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="node-provider-region">{t("graph.field.tencentRegion")}</Label>
+                <Input
+                  id="node-provider-region"
+                  value={stringValue(config.provider_region)}
+                  placeholder="ap-guangzhou"
+                  onChange={(event) => update({ provider_region: event.target.value })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="node-provider-biz-type">{t("graph.field.tencentBizType")}</Label>
+                <Input
+                  id="node-provider-biz-type"
+                  value={stringValue(config.provider_biz_type)}
+                  placeholder="TencentCloudDefault"
+                  onChange={(event) => update({ provider_biz_type: event.target.value })}
                 />
               </div>
               <div className="grid gap-1.5">
@@ -196,7 +272,11 @@ export default function ProviderModerationFields({
               ? t("graph.field.providerHintAzure")
               : provider === "perspective"
                 ? t("graph.field.providerHintPerspective")
-                : t("graph.field.providerHint")}
+                : provider === "aliyun"
+                  ? t("graph.field.providerHintAliyun")
+                  : provider === "tencent"
+                    ? t("graph.field.providerHintTencent")
+                    : t("graph.field.providerHint")}
           </p>
         </>
       )}

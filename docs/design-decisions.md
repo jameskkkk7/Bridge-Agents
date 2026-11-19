@@ -315,10 +315,11 @@ small.
 ## 23. Provider moderation complements the local hard gate
 
 **Decision:** the sanitize node always applies the local banned-word list. An
-optional provider check supports three adapters — OpenAI-compatible
-`/v1/moderations`, Azure AI Content Safety and Google Perspective — for the
-latest assistant draft only, replacing a flagged draft with a configurable
-fallback. Provider failures fail open by default.
+optional provider check supports five adapters — OpenAI-compatible
+`/v1/moderations`, Azure AI Content Safety, Google Perspective, Alibaba Cloud
+TextModeration and Tencent Cloud TMS — for the latest assistant draft only,
+replacing a flagged draft with a configurable fallback. Provider failures fail
+open by default.
 
 **Why:** the local list is deterministic, free and cannot be silently disabled
 by an outage. Provider classifiers catch categories that a finite word list

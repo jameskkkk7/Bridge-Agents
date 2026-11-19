@@ -178,6 +178,12 @@ export const zh: Record<string, string> = {
   "graph.provider.openai": "OpenAI 兼容审核",
   "graph.provider.azure": "Azure AI Content Safety",
   "graph.provider.perspective": "Google Perspective",
+  "graph.provider.aliyun": "阿里云内容安全（TextModeration）",
+  "graph.provider.tencent": "腾讯云文本内容安全（TMS）",
+  "graph.field.aliyunRegion": "地域",
+  "graph.field.aliyunService": "审核场景（Service）",
+  "graph.field.tencentRegion": "地域",
+  "graph.field.tencentBizType": "审核策略 BizType（可选）",
   "graph.field.providerBaseUrl": "服务商地址 / Endpoint",
   "graph.field.azureApiVersion": "API 版本",
   "graph.field.azureSeverity": "严重度阈值（0-7）",
@@ -194,6 +200,10 @@ export const zh: Record<string, string> = {
     "Azure 使用 MODERATION_AZURE_KEY（或 MODERATION_API_KEY），地址回退 MODERATION_AZURE_ENDPOINT；Endpoint 填资源根地址。",
   "graph.field.providerHintPerspective":
     "Perspective 使用 MODERATION_PERSPECTIVE_KEY（或 MODERATION_API_KEY），默认地址为 Google comments:analyze。",
+  "graph.field.providerHintAliyun":
+    "阿里云使用 MODERATION_ALIYUN_ACCESS_KEY_ID / MODERATION_ALIYUN_ACCESS_KEY_SECRET；Service 默认 comment_detection。",
+  "graph.field.providerHintTencent":
+    "腾讯云使用 MODERATION_TENCENT_SECRET_ID / MODERATION_TENCENT_SECRET_KEY；BizType 可选。",
   "graph.field.replacement": "替换为",
   "graph.field.reviewPrompt": "审核器提示词",
   "graph.field.onBlock": "拦截后处理",

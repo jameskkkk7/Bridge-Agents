@@ -445,6 +445,68 @@ class LangGraphPipeline(AgentPipeline):
                     LOGGER.warning(
                         "sanitize node requested Perspective but no API key is configured"
                     )
+            elif provider in ("aliyun", "alibaba", "aliyun-green", "green"):
+                region = str(
+                    config.get("provider_region")
+                    or self._settings.moderation_aliyun_region
+                    or "cn-shanghai"
+                ).strip()
+                base_url = str(
+                    config.get("provider_base_url")
+                    or self._settings.moderation_aliyun_endpoint
+                    or f"https://green-cip.{region}.aliyuncs.com"
+                ).strip()
+                access_key_id = self._settings.moderation_aliyun_access_key_id
+                access_key_secret = self._settings.moderation_aliyun_access_key_secret
+                service = str(
+                    config.get("provider_service")
+                    or self._settings.moderation_aliyun_service
+                    or "comment_detection"
+                )
+                if access_key_id and access_key_secret:
+                    moderator = create_moderator(
+                        "aliyun",
+                        base_url=base_url,
+                        access_key_id=access_key_id,
+                        access_key_secret=access_key_secret,
+                        service=service,
+                        timeout=timeout,
+                        region=region,
+                    )
+                else:
+                    LOGGER.warning("sanitize node: Alibaba Cloud AccessKey is not configured")
+            elif provider in ("tencent", "tms", "tencent-tms"):
+                region = str(
+                    config.get("provider_region")
+                    or self._settings.moderation_tencent_region
+                    or "ap-guangzhou"
+                ).strip()
+                base_url = str(
+                    config.get("provider_base_url")
+                    or self._settings.moderation_tencent_endpoint
+                    or "https://tms.tencentcloudapi.com"
+                ).strip()
+                secret_id = self._settings.moderation_tencent_secret_id
+                secret_key = self._settings.moderation_tencent_secret_key
+                biz_type = str(
+                    config.get("provider_biz_type")
+                    or self._settings.moderation_tencent_biz_type
+                    or ""
+                )
+                if secret_id and secret_key:
+                    moderator = create_moderator(
+                        "tencent",
+                        base_url=base_url,
+                        access_key_id=secret_id,
+                        access_key_secret=secret_key,
+                        region=region,
+                        biz_type=biz_type,
+                        timeout=timeout,
+                    )
+                else:
+                    LOGGER.warning(
+                        "sanitize node: Tencent Cloud SecretId/SecretKey is not configured"
+                    )
             elif provider in ("openai", "openai-compatible", "openai_compatible"):
                 base_url = str(
                     config.get("provider_base_url")

@@ -97,14 +97,23 @@ the flow:
 The sanitize node always applies its local banned-word list as the hard gate. If
 `provider_enabled` is set, it additionally classifies the latest assistant draft
 (not historical messages) and replaces a flagged draft with the configured
-fallback. `provider` selects one of three adapters: `openai` (any
+fallback. `provider` selects one of five adapters: `openai` (any
 OpenAI-compatible `/moderations`), `azure` (Azure AI Content Safety
-`contentsafety/text:analyze`, severity threshold) and `perspective` (Google
-Jigsaw `comments:analyze`, toxicity threshold). Credentials stay in the
-environment (`MODERATION_API_KEY`, `MODERATION_AZURE_KEY`,
-`MODERATION_PERSPECTIVE_KEY`; the OpenAI adapter also falls back to the runtime
+`contentsafety/text:analyze`, severity threshold), `perspective` (Google Jigsaw
+`comments:analyze`, toxicity threshold), `aliyun` (Alibaba Cloud Content
+Moderation `TextModeration` 2022-03-02, HMAC-SHA1 RPC signature) and `tencent`
+(Tencent Cloud TMS `TextModeration` 2020-12-29, TC3-HMAC-SHA256). Credentials
+stay in the environment (`MODERATION_API_KEY`, `MODERATION_AZURE_KEY`,
+`MODERATION_PERSPECTIVE_KEY`, `MODERATION_ALIYUN_ACCESS_KEY_*`,
+`MODERATION_TENCENT_SECRET_*`; the OpenAI adapter also falls back to the runtime
 model key). Provider errors fail open by default, while a fail-closed setting is
 available for deployments that must never pass an unclassified reply.
+
+The Alibaba Cloud and Tencent Cloud signers follow the official docs:
+[TextModeration 2022-03-02](https://www.alibabacloud.com/help/en/content-moderation/latest/api-green-2022-03-02-textmoderation),
+[Alibaba Cloud RPC signature](https://help.aliyun.com/en/cmn/developer-reference/signature-mechanism),
+[Tencent Cloud TextModeration](https://cloud.tencent.com/document/api/1124/51860) and
+[Tencent Cloud TC3 signature](https://cloud.tencent.com/document/product/1278/46710).
 
 The default graph is `system → retrieval → agent → review → end` with a `block`
 edge back to the agent, so a fresh deployment demonstrates both grounding and
@@ -289,6 +298,12 @@ credentials.
 | `MODERATION_AZURE_ENDPOINT` / `MODERATION_AZURE_KEY` | empty | Azure AI Content Safety resource root and key |
 | `MODERATION_AZURE_API_VERSION` / `MODERATION_AZURE_SEVERITY` | `2024-09-01` / `2` | Azure API version and severity threshold (0–7) |
 | `MODERATION_PERSPECTIVE_KEY` / `MODERATION_PERSPECTIVE_THRESHOLD` | empty / `0.7` | Perspective API key and toxicity threshold (0–1) |
+| `MODERATION_ALIYUN_ACCESS_KEY_ID` / `MODERATION_ALIYUN_ACCESS_KEY_SECRET` | empty | Alibaba Cloud RAM AccessKey pair |
+| `MODERATION_ALIYUN_REGION` / `MODERATION_ALIYUN_ENDPOINT` | `cn-shanghai` / empty | Alibaba Cloud region and optional endpoint override |
+| `MODERATION_ALIYUN_SERVICE` | `comment_detection` | Alibaba Cloud moderation scene |
+| `MODERATION_TENCENT_SECRET_ID` / `MODERATION_TENCENT_SECRET_KEY` | empty | Tencent Cloud API secret pair |
+| `MODERATION_TENCENT_REGION` / `MODERATION_TENCENT_ENDPOINT` | `ap-guangzhou` / empty | Tencent Cloud region and optional endpoint override |
+| `MODERATION_TENCENT_BIZ_TYPE` | empty | Optional Tencent Cloud review policy id |
 | `LARK_ENABLED` / `LARK_APP_ID` / `LARK_APP_SECRET` | `false` / empty | Enable the Lark channel |
 | `LARK_ENCRYPT_KEY` / `LARK_VERIFICATION_TOKEN` | empty | Event decryption and verification token |
 | `LARK_AGENT_OPEN_IDS` | empty | Open ids allowed to run support commands |
@@ -384,7 +399,7 @@ The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionari
 `LanguageProvider` persists the choice in `localStorage`, detects the browser
 language on first visit and localizes known system messages (takeover/release).
 
-Front-end budget: 40 files (excluding the lockfile) and 4,868 lines including
+Front-end budget: 40 files (excluding the lockfile) and 4,968 lines including
 deployment assets; the hard limit is 400 lines per file, which every component
 and page respects. The flow editor is the recent addition.
 
@@ -470,5 +485,6 @@ for committed environment files, key material and absolute paths. Real
 credential values never live in the repository: they are read from a
 git-ignored local file or injected by CI, and the gate is covered by its own
 negative test (an injected probe fails the build).
+
 
 

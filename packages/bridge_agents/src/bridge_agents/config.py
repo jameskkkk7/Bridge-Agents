@@ -82,6 +82,16 @@ class Settings(BaseSettings):
     moderation_azure_severity: int = 2
     moderation_perspective_key: str = ""
     moderation_perspective_threshold: float = 0.7
+    moderation_aliyun_access_key_id: str = ""
+    moderation_aliyun_access_key_secret: str = ""
+    moderation_aliyun_region: str = "cn-shanghai"
+    moderation_aliyun_endpoint: str = ""
+    moderation_aliyun_service: str = "comment_detection"
+    moderation_tencent_secret_id: str = ""
+    moderation_tencent_secret_key: str = ""
+    moderation_tencent_region: str = "ap-guangzhou"
+    moderation_tencent_endpoint: str = ""
+    moderation_tencent_biz_type: str = ""
 
     # LLM request behaviour
     openai_temperature: float = 1.0

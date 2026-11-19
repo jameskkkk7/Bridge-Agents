@@ -184,6 +184,12 @@ export const en: Record<string, string> = {
   "graph.provider.openai": "OpenAI-compatible moderation",
   "graph.provider.azure": "Azure AI Content Safety",
   "graph.provider.perspective": "Google Perspective",
+  "graph.provider.aliyun": "Alibaba Cloud Content Moderation",
+  "graph.provider.tencent": "Tencent Cloud TMS",
+  "graph.field.aliyunRegion": "Region",
+  "graph.field.aliyunService": "Service scenario",
+  "graph.field.tencentRegion": "Region",
+  "graph.field.tencentBizType": "BizType (optional)",
   "graph.field.providerBaseUrl": "Endpoint / base URL",
   "graph.field.azureApiVersion": "API version",
   "graph.field.azureSeverity": "Severity threshold (0-7)",
@@ -200,6 +206,10 @@ export const en: Record<string, string> = {
     "Azure uses MODERATION_AZURE_KEY (or MODERATION_API_KEY) and MODERATION_AZURE_ENDPOINT as fallbacks. The endpoint should be the resource root.",
   "graph.field.providerHintPerspective":
     "Perspective uses MODERATION_PERSPECTIVE_KEY (or MODERATION_API_KEY). The default endpoint is Google's comments:analyze URL.",
+  "graph.field.providerHintAliyun":
+    "Alibaba Cloud uses MODERATION_ALIYUN_ACCESS_KEY_ID / MODERATION_ALIYUN_ACCESS_KEY_SECRET. Service defaults to comment_detection.",
+  "graph.field.providerHintTencent":
+    "Tencent Cloud uses MODERATION_TENCENT_SECRET_ID / MODERATION_TENCENT_SECRET_KEY. BizType is optional.",
   "graph.field.replacement": "Replacement",
   "graph.field.reviewPrompt": "Reviewer prompt",
   "graph.field.onBlock": "On block",

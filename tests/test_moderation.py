@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import asyncio
 import json
+from urllib.parse import parse_qs
 
 import httpx
 import pytest
 from bridge_agents.agent.pipeline import LangGraphPipeline
 from bridge_agents.moderation import (
+    AliyunTextModerationModerator,
     ModerationError,
     ModerationVerdict,
     OpenAICompatibleModerator,
+    TencentTextModerationModerator,
+    aliyun_rpc_signature,
     create_moderator,
+    tencent_tc3_headers,
 )
 from langchain_core.messages import AIMessage, HumanMessage
 
@@ -291,3 +296,131 @@ async def test_perspective_adapter_reads_toxicity_score() -> None:
 async def test_create_moderator_rejects_unknown_provider() -> None:
     with pytest.raises(ValueError):
         create_moderator("not-a-provider")
+
+
+async def test_aliyun_signature_matches_official_example() -> None:
+    params = {
+        "Timestamp": "2016-02-23T12:46:24Z",
+        "Format": "XML",
+        "AccessKeyId": "testid",
+        "Action": "DescribeRegions",
+        "SignatureMethod": "HMAC-SHA1",
+        "SignatureNonce": "3ee8c1b8-83d3-44af-a94f-4e0ad82fd6cf",
+        "Version": "2014-05-26",
+        "SignatureVersion": "1.0",
+    }
+    assert aliyun_rpc_signature("GET", params, "testsecret") == "OLeaidS1JvxuMvnyHOwuJ+uX5qY="
+
+
+async def test_aliyun_adapter_flags_labels_from_provider() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["form"] = parse_qs(request.content.decode())
+        return httpx.Response(
+            200,
+            json={
+                "Code": 200,
+                "Message": "OK",
+                "Data": {"labels": "porn,ad", "reason": "{}"},
+            },
+        )
+
+    moderator = AliyunTextModerationModerator(
+        endpoint="https://green-cip.cn-shanghai.aliyuncs.com",
+        access_key_id="aliyun-id",
+        access_key_secret="aliyun-secret",
+        service="comment_detection",
+        timestamp="2024-01-01T00:00:00Z",
+        nonce="test-nonce",
+        transport=httpx.MockTransport(handler),
+    )
+    verdict = await moderator.check("flagged text")
+
+    assert verdict.flagged is True
+    assert verdict.categories == {"porn": True, "ad": True}
+    form = captured["form"]
+    assert form["Action"] == ["TextModeration"]
+    assert form["Version"] == ["2022-03-02"]
+    assert form["AccessKeyId"] == ["aliyun-id"]
+    assert json.loads(form["ServiceParameters"][0]) == {"content": "flagged text"}
+    assert form["Signature"][0]
+
+
+def test_tencent_tc3_headers_match_official_example() -> None:
+    payload = (
+        b'{"Limit": 1, "Filters": [{"Values": ["\\u672a\\u547d\\u540d"], "Name": "instance-name"}]}'
+    )
+    headers = tencent_tc3_headers(
+        secret_id="AKIDz8krbsJ5yKBZQpn74WFkmLPx3EXAMPLE",
+        secret_key="Gu5t9xGARNpq86cd98joQYCN3EXAMPLE",
+        host="cvm.tencentcloudapi.com",
+        service="cvm",
+        action="DescribeInstances",
+        version="2017-03-12",
+        region="ap-guangzhou",
+        payload=payload,
+        timestamp=1551113065,
+    )
+    expected = (
+        "TC3-HMAC-SHA256 Credential=AKIDz8krbsJ5yKBZQpn74WFkmLPx3EXAMPLE/"
+        "2019-02-25/cvm/tc3_request, SignedHeaders=content-type;host, "
+        "Signature=72e494ea809ad7a8c8f7a4507b9bddcbaa8e581f516e8da2f66e2c5a96525168"
+    )
+    assert headers["Authorization"] == expected
+
+
+async def test_tencent_adapter_flags_moderation_suggestion() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        captured["authorization"] = request.headers.get("authorization")
+        return httpx.Response(
+            200,
+            json={
+                "Response": {
+                    "Suggestion": "Block",
+                    "Label": "Porn",
+                    "Score": 85,
+                    "RequestId": "req-1",
+                }
+            },
+        )
+
+    moderator = TencentTextModerationModerator(
+        endpoint="https://tms.tencentcloudapi.com",
+        secret_id="secret-id",
+        secret_key="secret-key",
+        region="ap-guangzhou",
+        transport=httpx.MockTransport(handler),
+        timestamp=1700000000,
+    )
+    verdict = await moderator.check("flagged text")
+
+    assert verdict.flagged is True
+    assert verdict.categories == {"Porn": True}
+    assert captured["body"]["Content"] == "ZmxhZ2dlZCB0ZXh0"
+    assert "TC3-HMAC-SHA256 Credential=secret-id/" in captured["authorization"]
+
+
+async def test_tencent_adapter_reports_api_errors() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "Response": {
+                    "Error": {"Code": "AuthFailure.SignatureFailure", "Message": "bad sig"}
+                }
+            },
+        )
+
+    moderator = TencentTextModerationModerator(
+        endpoint="https://tms.tencentcloudapi.com",
+        secret_id="secret-id",
+        secret_key="secret-key",
+        transport=httpx.MockTransport(handler),
+        timestamp=1700000000,
+    )
+    with pytest.raises(ModerationError):
+        await moderator.check("hello")
