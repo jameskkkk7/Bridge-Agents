@@ -153,7 +153,7 @@ local API. Engineering details — API, configuration, quality gates — live in
 | Works on a phone | ✅ responsive customer chat, support desk and Studio | admin consoles are often desktop-first |
 | Light and dark themes | ✅ one token system, switch in the header, remembered | often a single fixed theme |
 | Modern component system | ✅ Tailwind 4 + shadcn/ui (Radix), vendored and readable | often a closed component library |
-| Sensitive-word filtering | ✅ local hard gate plus optional OpenAI-compatible moderation API | often only one of the two |
+| Sensitive-word filtering | ✅ local hard gate plus optional OpenAI, Azure Content Safety or Perspective moderation | often only one of the two |
 | Works offline for demos and evaluation | ✅ one command with a mock model | often cloud-first |
 
 Low-code platforms are great for drag-and-drop prototyping. Bridge-Agents is for

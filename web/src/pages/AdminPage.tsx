@@ -16,6 +16,7 @@ import {
   tokenFor,
 } from "@/api";
 import { useLanguage } from "@/i18n";
+import AdminSessionTable from "@/pages/AdminSessionTable";
 import { ChatSocket, ConnState } from "@/ws";
 
 function toRecord(event: Record<string, unknown>): MessageRecord {
@@ -199,8 +200,6 @@ export default function AdminPage() {
     }
   };
 
-  const statusVariant = (status: string) =>
-    status === "active" ? "success" : status === "archived" ? "warning" : "secondary";
   const composerEnabled = Boolean(selected?.human_takeover && selected?.status !== "closed");
 
   return (
@@ -246,53 +245,11 @@ export default function AdminPage() {
               {t("admin.shown", { count: sessions.length })}
             </span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-[11px] tracking-wide text-muted-foreground uppercase">
-                  <th className="px-5 py-2 font-medium">{t("admin.colCustomer")}</th>
-                  <th className="px-2 py-2 font-medium">{t("admin.colStatus")}</th>
-                  <th className="hidden px-2 py-2 font-medium sm:table-cell">
-                    {t("admin.colAI")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {sessions.map((session) => (
-                  <tr
-                    key={session.id}
-                    onClick={() => void open(session)}
-                    className={
-                      selected?.id === session.id
-                        ? "cursor-pointer bg-primary/5"
-                        : "cursor-pointer hover:bg-muted/60"
-                    }
-                  >
-                    <td className="max-w-[220px] px-5 py-3">
-                      <strong className="block truncate text-sm font-medium">
-                        {session.user_email ?? session.user_id.slice(0, 8)}
-                      </strong>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {session.title}
-                      </span>
-                    </td>
-                    <td className="px-2 py-3">
-                      <Badge variant={statusVariant(session.status)}>
-                        {t(`admin.status.${session.status}`)}
-                      </Badge>
-                    </td>
-                    <td className="hidden px-2 py-3 sm:table-cell">
-                      {session.human_takeover ? (
-                        <Badge variant="warning">{t("admin.badgeHuman")}</Badge>
-                      ) : (
-                        <Badge variant="accent">{t("admin.badgeAssistant")}</Badge>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AdminSessionTable
+            sessions={sessions}
+            selectedId={selected?.id}
+            onOpen={(session) => void open(session)}
+          />
         </Card>
 
         <Card data-conversation-panel className="flex flex-col gap-3 px-5 py-4">

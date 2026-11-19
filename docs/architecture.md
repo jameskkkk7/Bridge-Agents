@@ -95,13 +95,16 @@ the flow:
 | `review` | Gates the reply: accept, retry, fallback or pass-through | `system_prompt`, `max_retries`, `on_block`, `fallback_message` |
 
 The sanitize node always applies its local banned-word list as the hard gate. If
-`provider_enabled` is set, it additionally calls an OpenAI-compatible
-`/v1/moderations` endpoint for the latest assistant draft (not historical
-messages) and replaces a flagged draft with the configured fallback. The API key
-comes from `MODERATION_API_KEY`, falling back to the runtime model key; the base
-URL is the node setting, then `MODERATION_BASE_URL`, then `OPENAI_BASE_URL`.
-Provider errors fail open by default, while a fail-closed setting is available
-for deployments that must never pass an unclassified reply.
+`provider_enabled` is set, it additionally classifies the latest assistant draft
+(not historical messages) and replaces a flagged draft with the configured
+fallback. `provider` selects one of three adapters: `openai` (any
+OpenAI-compatible `/moderations`), `azure` (Azure AI Content Safety
+`contentsafety/text:analyze`, severity threshold) and `perspective` (Google
+Jigsaw `comments:analyze`, toxicity threshold). Credentials stay in the
+environment (`MODERATION_API_KEY`, `MODERATION_AZURE_KEY`,
+`MODERATION_PERSPECTIVE_KEY`; the OpenAI adapter also falls back to the runtime
+model key). Provider errors fail open by default, while a fail-closed setting is
+available for deployments that must never pass an unclassified reply.
 
 The default graph is `system → retrieval → agent → review → end` with a `block`
 edge back to the agent, so a fresh deployment demonstrates both grounding and
@@ -278,10 +281,14 @@ credentials.
 | `RAG_TOP_K` / `RAG_MIN_SCORE` | `4` / `0.12` | Passages per query and the score threshold |
 | `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `900` / `120` | Passage size and overlap |
 | `RAG_MAX_CONTEXT_CHARS` | `2400` | Hard budget for the injected context block |
-| `MODERATION_BASE_URL` | empty (falls back to `OPENAI_BASE_URL`) | Provider moderation endpoint base URL |
-| `MODERATION_API_KEY` | empty (falls back to the model key) | Bearer token for the moderation API |
-| `MODERATION_MODEL` | `omni-moderation-latest` | Moderation model name |
+| `MODERATION_PROVIDER` | `openai` | Default adapter when a node does not set one |
+| `MODERATION_BASE_URL` | empty (falls back to `OPENAI_BASE_URL`) | OpenAI-compatible endpoint base URL |
+| `MODERATION_API_KEY` | empty (falls back to the model key) | Token for the OpenAI-compatible adapter |
+| `MODERATION_MODEL` | `omni-moderation-latest` | OpenAI-compatible moderation model |
 | `MODERATION_TIMEOUT` | `5` | Provider request timeout in seconds |
+| `MODERATION_AZURE_ENDPOINT` / `MODERATION_AZURE_KEY` | empty | Azure AI Content Safety resource root and key |
+| `MODERATION_AZURE_API_VERSION` / `MODERATION_AZURE_SEVERITY` | `2024-09-01` / `2` | Azure API version and severity threshold (0–7) |
+| `MODERATION_PERSPECTIVE_KEY` / `MODERATION_PERSPECTIVE_THRESHOLD` | empty / `0.7` | Perspective API key and toxicity threshold (0–1) |
 | `LARK_ENABLED` / `LARK_APP_ID` / `LARK_APP_SECRET` | `false` / empty | Enable the Lark channel |
 | `LARK_ENCRYPT_KEY` / `LARK_VERIFICATION_TOKEN` | empty | Event decryption and verification token |
 | `LARK_AGENT_OPEN_IDS` | empty | Open ids allowed to run support commands |
@@ -377,7 +384,7 @@ The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionari
 `LanguageProvider` persists the choice in `localStorage`, detects the browser
 language on first visit and localizes known system messages (takeover/release).
 
-Front-end budget: 37 files (excluding the lockfile) and 4,356 lines including
+Front-end budget: 40 files (excluding the lockfile) and 4,868 lines including
 deployment assets; the hard limit is 400 lines per file, which every component
 and page respects. The flow editor is the recent addition.
 
@@ -463,3 +470,5 @@ for committed environment files, key material and absolute paths. Real
 credential values never live in the repository: they are read from a
 git-ignored local file or injected by CI, and the gate is covered by its own
 negative test (an injected probe fails the build).
+
+

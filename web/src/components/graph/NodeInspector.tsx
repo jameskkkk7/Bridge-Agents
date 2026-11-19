@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/i18n";
+import ProviderModerationFields from "./ProviderModerationFields";
 import type { GraphFlowNode, GraphNodeKind, ToolInfo } from "./model";
 
 function stringValue(value: unknown): string {
@@ -164,86 +165,7 @@ export default function NodeInspector({
               />
             </div>
 
-            <div className="grid gap-3 border-t border-border pt-4">
-              <div className="text-xs font-semibold text-foreground">
-                {t("graph.field.providerSection")}
-              </div>
-              <Label className="gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={config.provider_enabled === true}
-                  onChange={(event) => update({ provider_enabled: event.target.checked })}
-                  className="size-4 accent-[var(--primary)]"
-                />
-                {t("graph.field.providerEnabled")}
-              </Label>
-
-              {config.provider_enabled === true && (
-                <>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="node-provider-url">{t("graph.field.providerBaseUrl")}</Label>
-                    <Input
-                      id="node-provider-url"
-                      value={stringValue(config.provider_base_url)}
-                      placeholder="https://api.openai.com/v1"
-                      onChange={(event) => update({ provider_base_url: event.target.value })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="node-provider-model">{t("graph.field.providerModel")}</Label>
-                      <Input
-                        id="node-provider-model"
-                        value={stringValue(config.provider_model)}
-                        placeholder="omni-moderation-latest"
-                        onChange={(event) => update({ provider_model: event.target.value })}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="node-provider-timeout">
-                        {t("graph.field.providerTimeout")}
-                      </Label>
-                      <Input
-                        id="node-provider-timeout"
-                        type="number"
-                        min={0.5}
-                        max={30}
-                        step={0.5}
-                        value={numberValue(config.provider_timeout, 5)}
-                        onChange={(event) =>
-                          update({ provider_timeout: Number(event.target.value) })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="node-provider-fallback">
-                      {t("graph.field.providerFallback")}
-                    </Label>
-                    <Textarea
-                      id="node-provider-fallback"
-                      value={stringValue(config.provider_fallback)}
-                      onChange={(event) => update({ provider_fallback: event.target.value })}
-                      className="min-h-16"
-                    />
-                  </div>
-                  <Label className="gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={config.provider_fail_open !== false}
-                      onChange={(event) =>
-                        update({ provider_fail_open: event.target.checked })
-                      }
-                      className="size-4 accent-[var(--primary)]"
-                    />
-                    {t("graph.field.providerFailOpen")}
-                  </Label>
-                  <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    {t("graph.field.providerHint")}
-                  </p>
-                </>
-              )}
-            </div>
+            <ProviderModerationFields config={config} onChange={update} />
           </>
         )}
 

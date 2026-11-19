@@ -43,11 +43,7 @@ from bridge_agents.agent import AgentPipeline
 from bridge_agents.agent.prompts import DEFAULT_FALLBACK_MESSAGE, DEFAULT_REVIEW_PROMPT
 from bridge_agents.agent.tools import get_tools
 from bridge_agents.config import Settings, get_settings
-from bridge_agents.moderation import (
-    ModerationError,
-    Moderator,
-    OpenAICompatibleModerator,
-)
+from bridge_agents.moderation import ModerationError, Moderator, create_moderator
 from bridge_agents.rag.format import format_context_blocks
 from bridge_agents.rag.knowledge import KnowledgeBase, get_knowledge
 
@@ -391,25 +387,83 @@ class LangGraphPipeline(AgentPipeline):
         provider_fail_open = config.get("provider_fail_open", True) is not False
         moderator = self._moderator
         if provider_enabled and moderator is None:
-            base_url = str(
-                config.get("provider_base_url")
-                or self._settings.moderation_base_url
-                or self._settings.openai_base_url
-            ).strip()
-            if base_url:
-                moderator = OpenAICompatibleModerator(
-                    base_url=base_url,
-                    api_key=str(self._settings.moderation_api_key or self._settings.openai_api_key),
-                    model=str(config.get("provider_model") or self._settings.moderation_model),
-                    timeout=_float_setting(
-                        config.get("provider_timeout"),
-                        float(self._settings.moderation_timeout),
-                    ),
+            provider = (
+                str(config.get("provider") or self._settings.moderation_provider or "openai")
+                .strip()
+                .lower()
+            )
+            timeout = _float_setting(
+                config.get("provider_timeout"),
+                float(self._settings.moderation_timeout),
+            )
+            if provider == "azure":
+                base_url = str(
+                    config.get("provider_base_url") or self._settings.moderation_azure_endpoint
+                ).strip()
+                api_key = str(
+                    self._settings.moderation_azure_key or self._settings.moderation_api_key
                 )
+                api_version = str(
+                    config.get("provider_api_version")
+                    or self._settings.moderation_azure_api_version
+                )
+                severity = _int_setting(
+                    config.get("provider_severity"),
+                    self._settings.moderation_azure_severity,
+                    minimum=0,
+                )
+                if base_url and api_key:
+                    moderator = create_moderator(
+                        "azure",
+                        base_url=base_url,
+                        api_key=api_key,
+                        timeout=timeout,
+                        api_version=api_version,
+                        severity_threshold=severity,
+                    )
+                else:
+                    LOGGER.warning("sanitize node: Azure endpoint/key is incomplete")
+            elif provider == "perspective":
+                base_url = str(config.get("provider_base_url") or "").strip()
+                api_key = str(
+                    self._settings.moderation_perspective_key or self._settings.moderation_api_key
+                )
+                threshold = _float_setting(
+                    config.get("provider_threshold"),
+                    self._settings.moderation_perspective_threshold,
+                )
+                if api_key:
+                    moderator = create_moderator(
+                        "perspective",
+                        base_url=base_url,
+                        api_key=api_key,
+                        timeout=timeout,
+                        threshold=threshold,
+                        language=str(config.get("provider_language") or "en"),
+                    )
+                else:
+                    LOGGER.warning(
+                        "sanitize node requested Perspective but no API key is configured"
+                    )
+            elif provider in ("openai", "openai-compatible", "openai_compatible"):
+                base_url = str(
+                    config.get("provider_base_url")
+                    or self._settings.moderation_base_url
+                    or self._settings.openai_base_url
+                ).strip()
+                api_key = str(self._settings.moderation_api_key or self._settings.openai_api_key)
+                if base_url:
+                    moderator = create_moderator(
+                        "openai",
+                        base_url=base_url,
+                        api_key=api_key,
+                        model=str(config.get("provider_model") or self._settings.moderation_model),
+                        timeout=timeout,
+                    )
+                else:
+                    LOGGER.warning("sanitize node: moderation base URL is missing")
             else:
-                LOGGER.warning(
-                    "sanitize node requested provider moderation but no base URL is configured"
-                )
+                LOGGER.warning("sanitize node: unknown moderation provider %r", provider)
 
         async def sanitize_node(state: _GraphState) -> dict:
             if mask is None and not (provider_enabled and moderator is not None):

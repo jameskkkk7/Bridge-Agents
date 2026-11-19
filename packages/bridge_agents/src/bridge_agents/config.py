@@ -71,10 +71,17 @@ class Settings(BaseSettings):
     openai_thinking_enabled: bool = False
 
     # Optional provider moderation for the sanitize node
+    moderation_provider: str = "openai"
     moderation_base_url: str = ""
     moderation_api_key: str = ""
     moderation_model: str = "omni-moderation-latest"
     moderation_timeout: int = 5
+    moderation_azure_endpoint: str = ""
+    moderation_azure_key: str = ""
+    moderation_azure_api_version: str = "2024-09-01"
+    moderation_azure_severity: int = 2
+    moderation_perspective_key: str = ""
+    moderation_perspective_threshold: float = 0.7
 
     # LLM request behaviour
     openai_temperature: float = 1.0

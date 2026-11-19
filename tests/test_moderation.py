@@ -12,6 +12,7 @@ from bridge_agents.moderation import (
     ModerationError,
     ModerationVerdict,
     OpenAICompatibleModerator,
+    create_moderator,
 )
 from langchain_core.messages import AIMessage, HumanMessage
 
@@ -191,3 +192,102 @@ def test_sanitize_node_uses_the_mock_provider_end_to_end() -> None:
         {"messages": [AIMessage(content="[[moderation]] draft", id="a1")]},
     )
     assert update["messages"][0].content == "BLOCKED BY PROVIDER"
+
+
+async def test_azure_adapter_reads_severities_and_threshold() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["key"] = request.headers.get("ocp-apim-subscription-key")
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "categoriesAnalysis": [
+                    {"category": "Hate", "severity": 2},
+                    {"category": "Violence", "severity": 4},
+                    {"category": "Sexual", "severity": 0},
+                ]
+            },
+        )
+
+    moderator = create_moderator(
+        "azure",
+        base_url="https://resource.cognitiveservices.azure.com",
+        api_key="azure-key",
+        api_version="2024-09-01",
+        severity_threshold=2,
+        transport=httpx.MockTransport(handler),
+    )
+    verdict = await moderator.check("bad text")
+
+    assert str(seen["url"]).startswith(
+        "https://resource.cognitiveservices.azure.com/contentsafety/text:analyze"
+    )
+    assert "api-version=2024-09-01" in str(seen["url"])
+    assert seen["key"] == "azure-key"
+    assert seen["body"]["categories"] == ["Hate", "Sexual", "SelfHarm", "Violence"]
+    assert verdict.flagged is True
+    assert verdict.categories == {"Hate": True, "Violence": True}
+    assert "Violence=4" in verdict.reason
+
+
+async def test_azure_adapter_below_threshold_is_safe() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "categoriesAnalysis": [
+                    {"category": "Hate", "severity": 0},
+                    {"category": "Violence", "severity": 1},
+                ]
+            },
+        )
+
+    moderator = create_moderator(
+        "azure",
+        base_url="https://resource.cognitiveservices.azure.com",
+        api_key="azure-key",
+        severity_threshold=2,
+        transport=httpx.MockTransport(handler),
+    )
+    verdict = await moderator.check("mild text")
+    assert verdict.flagged is False
+
+
+async def test_perspective_adapter_reads_toxicity_score() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        seen["key"] = request.url.params.get("key")
+        return httpx.Response(
+            200,
+            json={
+                "attributeScores": {
+                    "TOXICITY": {"summaryScore": {"value": 0.91, "type": "PROBABILITY"}}
+                }
+            },
+        )
+
+    moderator = create_moderator(
+        "perspective",
+        base_url="https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze",
+        api_key="perspective-key",
+        threshold=0.7,
+        language="en",
+        transport=httpx.MockTransport(handler),
+    )
+    verdict = await moderator.check("toxic text")
+
+    assert seen["key"] == "perspective-key"
+    assert seen["body"]["comment"] == {"text": "toxic text"}
+    assert seen["body"]["languages"] == ["en"]
+    assert verdict.flagged is True
+    assert verdict.categories == {"TOXICITY": True}
+
+
+async def test_create_moderator_rejects_unknown_provider() -> None:
+    with pytest.raises(ValueError):
+        create_moderator("not-a-provider")

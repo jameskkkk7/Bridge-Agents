@@ -12,27 +12,14 @@ import {
   type OnSelectionChangeParams,
   type ReactFlowInstance,
 } from "@xyflow/react";
-import {
-  Bot,
-  Eye,
-  LayoutGrid,
-  PenTool,
-  Play,
-  RotateCcw,
-  Save,
-  Search,
-  Shield,
-  Square,
-  Terminal,
-  Wrench,
-} from "lucide-react";
+import { LayoutGrid, RotateCcw, Save } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { deleteJson, errorText, getJson, putJson } from "@/api";
 import { useLanguage } from "@/i18n";
 import GraphNodeView from "./GraphNodeView";
+import GraphPalette from "./GraphPalette";
 import NodeInspector from "./NodeInspector";
 import {
   autoLayout,
@@ -50,30 +37,6 @@ import {
   type GraphNodeKind,
   type ToolInfo,
 } from "./model";
-
-const NODE_ICONS: Record<GraphNodeKind, typeof Bot> = {
-  start: Play,
-  end: Square,
-  system: Terminal,
-  retrieval: Search,
-  agent: Bot,
-  tools: Wrench,
-  custom: PenTool,
-  sanitize: Shield,
-  review: Eye,
-};
-
-const PALETTE: GraphNodeKind[] = [
-  "system",
-  "retrieval",
-  "agent",
-  "tools",
-  "review",
-  "custom",
-  "sanitize",
-  "start",
-  "end",
-];
 
 const MINIMAP_COLORS: Record<GraphNodeKind, string> = {
   start: "#94a3b8",
@@ -346,30 +309,7 @@ export default function GraphEditor({ token }: { token: string }) {
 
       <div className="flex flex-col gap-3">
         <Card className="overflow-hidden">
-          <div className="flex flex-wrap items-center gap-1.5 border-b border-border p-3">
-            <Badge variant="outline" className="mr-1">
-              {t("graph.palette")}
-            </Badge>
-            {PALETTE.map((kind) => {
-              const Icon = NODE_ICONS[kind];
-              const taken =
-                (kind === "start" || kind === "end") &&
-                nodes.some((node) => node.data.kind === kind);
-              return (
-                <Button
-                  key={kind}
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1 px-2 text-xs"
-                  disabled={taken}
-                  onClick={() => addNode(kind)}
-                >
-                  <Icon className="size-3.5" />
-                  {t(`graph.kind.${kind}`)}
-                </Button>
-              );
-            })}
-          </div>
+          <GraphPalette nodes={nodes} onAdd={addNode} />
           <div ref={canvasRef} className="h-[52vh] min-h-[420px] w-full">
             <ReactFlow
               nodes={nodes}
