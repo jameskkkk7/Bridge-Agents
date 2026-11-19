@@ -17,6 +17,7 @@ from app.core.agent.factory import (
     validate_graph_config,
 )
 from app.core.exceptions import ValidationError
+from app.services.model_config_service import load_override, resolve_settings
 from app.services.runtime_config_service import RuntimeConfigService
 
 
@@ -49,7 +50,9 @@ async def update_prompt(db: AsyncSession, application: FastAPI, prompt: str) -> 
     for node in system_nodes:
         config = node.setdefault("config", {})
         config["system_prompt"] = prompt
-    error = validate_graph_config(graph)
+    base_settings = application.state.settings
+    override = await load_override(db, base_settings, include_secret=True)
+    error = validate_graph_config(graph, settings=resolve_settings(base_settings, override))
     if error is not None:
         raise ValidationError(error)
     await RuntimeConfigService(db).set_agent_graph_config(graph)

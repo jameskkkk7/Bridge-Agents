@@ -65,6 +65,10 @@ class Settings(BaseSettings):
 
     # LLM
     llm_mode: str = "mock"
+    # openai | azure | deepseek | qwen | moonshot | zhipu | volcengine | baidu |
+    # minimax | siliconflow | openrouter | gemini | anthropic | ollama | custom
+    llm_provider: str = "openai"
+    openai_api_version: str = "2024-10-21"
     openai_base_url: str = "http://mock-llm:8001/v1"
     openai_api_key: str = "not-needed"
     openai_model: str = "mock-model"
@@ -75,7 +79,7 @@ class Settings(BaseSettings):
     moderation_base_url: str = ""
     moderation_api_key: str = ""
     moderation_model: str = "omni-moderation-latest"
-    moderation_timeout: int = 5
+    moderation_timeout: float = 5.0
     moderation_azure_endpoint: str = ""
     moderation_azure_key: str = ""
     moderation_azure_api_version: str = "2024-09-01"
@@ -92,6 +96,8 @@ class Settings(BaseSettings):
     moderation_tencent_region: str = "ap-guangzhou"
     moderation_tencent_endpoint: str = ""
     moderation_tencent_biz_type: str = ""
+    # Optional allow-list of provider hosts; empty means "any host the URL sets".
+    moderation_allowed_hosts: str = ""
 
     # LLM request behaviour
     openai_temperature: float = 1.0
@@ -138,6 +144,11 @@ class Settings(BaseSettings):
     def lark_agent_open_id_list(self) -> list[str]:
         """Lark open ids treated as support agents."""
         return _split_csv(self.lark_agent_open_ids)
+
+    @property
+    def moderation_allowed_host_list(self) -> list[str]:
+        """Optional hosts a moderation provider URL may point at."""
+        return _split_csv(self.moderation_allowed_hosts)
 
     @property
     def lark_command_list(self) -> list[str]:

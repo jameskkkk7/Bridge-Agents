@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 from urllib.parse import parse_qs
 
 import httpx
 import pytest
+from bridge_agents.agent.factory import validate_graph_config
 from bridge_agents.agent.pipeline import LangGraphPipeline
+from bridge_agents.config import Settings
 from bridge_agents.moderation import (
     AliyunTextModerationModerator,
     ModerationError,
@@ -17,9 +20,13 @@ from bridge_agents.moderation import (
     TencentTextModerationModerator,
     aliyun_rpc_signature,
     create_moderator,
+    provider_credentials_error,
+    redact_secret_urls,
+    resolve_provider_base_url,
     tencent_tc3_headers,
+    validate_sanitize_provider_config,
 )
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 
 
 def _run(node, state):
@@ -421,6 +428,571 @@ async def test_tencent_adapter_reports_api_errors() -> None:
         secret_key="secret-key",
         transport=httpx.MockTransport(handler),
         timestamp=1700000000,
+    )
+    with pytest.raises(ModerationError):
+        await moderator.check("hello")
+
+
+# --- hardening: defensive parsing, redaction, chunking, gating ---------------
+
+
+class _RaisingModerator:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+        self.calls: list[str] = []
+
+    async def check(self, text: str) -> ModerationVerdict:
+        self.calls.append(text)
+        raise self.error
+
+
+def _sanitize_graph(sanitize_config: dict) -> dict:
+    return {
+        "nodes": [
+            {"id": "__start__", "type": "start", "config": {}},
+            {"id": "system_node", "type": "system", "config": {"system_prompt": "Be nice."}},
+            {"id": "agent_node", "type": "agent", "config": {}},
+            {"id": "sanitize_node", "type": "sanitize", "config": sanitize_config},
+            {"id": "__end__", "type": "end", "config": {}},
+        ],
+        "edges": [
+            {"source": "__start__", "target": "system_node"},
+            {"source": "system_node", "target": "agent_node"},
+            {"source": "agent_node", "target": "sanitize_node"},
+            {"source": "sanitize_node", "target": "__end__"},
+        ],
+    }
+
+
+def _collect(generator) -> list[dict]:
+    async def _gather() -> list[dict]:
+        return [update async for update in generator]
+
+    return asyncio.run(_gather())
+
+
+def test_secret_query_parameters_are_redacted() -> None:
+    redacted = redact_secret_urls(
+        "POST https://x.test/y?key=SECRET-VALUE&other=1&api_key=OTHER-SECRET failed"
+    )
+    assert "SECRET-VALUE" not in redacted
+    assert "OTHER-SECRET" not in redacted
+    assert "key=***" in redacted
+
+
+async def test_openai_malformed_categories_raise_moderation_error() -> None:
+    moderator = OpenAICompatibleModerator(
+        base_url="http://provider.test/v1",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, json={"results": [{"flagged": False, "categories": ["violence"]}]}
+            )
+        ),
+    )
+    with pytest.raises(ModerationError):
+        await moderator.check("hello")
+
+
+async def test_openai_invalid_endpoint_is_rejected_before_any_request() -> None:
+    with pytest.raises(ValueError):
+        OpenAICompatibleModerator(base_url="http://provider.test:badport/v1")
+
+
+async def test_perspective_missing_verdict_raises_moderation_error() -> None:
+    moderator = create_moderator(
+        "perspective",
+        base_url="https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze",
+        api_key="perspective-key",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"attributeScores": {"TOXICITY": {}}})
+        ),
+    )
+    with pytest.raises(ModerationError):
+        await moderator.check("hello")
+
+
+async def test_tencent_missing_verdict_raises_moderation_error() -> None:
+    moderator = TencentTextModerationModerator(
+        secret_id="secret-id",
+        secret_key="secret-key",
+        timestamp=1700000000,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"Response": {"RequestId": "r"}})
+        ),
+    )
+    with pytest.raises(ModerationError):
+        await moderator.check("hello")
+
+
+async def test_aliyun_missing_data_raises_moderation_error() -> None:
+    moderator = AliyunTextModerationModerator(
+        endpoint="https://green-cip.cn-shanghai.aliyuncs.com",
+        access_key_id="aliyun-id",
+        access_key_secret="aliyun-secret",
+        timestamp="2024-01-01T00:00:00Z",
+        nonce="test-nonce",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"Code": 200, "Message": "OK"})
+        ),
+    )
+    with pytest.raises(ModerationError):
+        await moderator.check("hello")
+
+
+async def test_aliyun_splits_long_replies_into_600_char_requests() -> None:
+    contents: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        form = parse_qs(request.content.decode())
+        content = json.loads(form["ServiceParameters"][0])["content"]
+        contents.append(content)
+        labels = "profanity" if "bad" in content else ""
+        return httpx.Response(200, json={"Code": 200, "Data": {"labels": labels}})
+
+    moderator = AliyunTextModerationModerator(
+        endpoint="https://green-cip.cn-shanghai.aliyuncs.com",
+        access_key_id="aliyun-id",
+        access_key_secret="aliyun-secret",
+        timestamp="2024-01-01T00:00:00Z",
+        transport=httpx.MockTransport(handler),
+    )
+    text = "a" * 500 + " bad " + "b" * 500
+    verdict = await moderator.check(text)
+
+    assert len(contents) >= 2
+    assert all(len(content) <= 600 for content in contents)
+    assert "".join(contents) == text
+    assert verdict.flagged is True
+
+
+async def test_tencent_splits_long_replies_into_10000_char_requests() -> None:
+    decoded: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        decoded.append(base64.b64decode(body["Content"]).decode("utf-8"))
+        return httpx.Response(200, json={"Response": {"Suggestion": "Pass", "Label": "Normal"}})
+
+    moderator = TencentTextModerationModerator(
+        secret_id="secret-id",
+        secret_key="secret-key",
+        timestamp=1700000000,
+        transport=httpx.MockTransport(handler),
+    )
+    text = "x" * 10_001
+    verdict = await moderator.check(text)
+
+    assert len(decoded) == 2
+    assert "".join(decoded) == text
+    assert verdict.flagged is False
+
+
+def test_sanitize_node_applies_policy_to_unexpected_provider_exceptions() -> None:
+    messages = [AIMessage(content="reply", id="a1")]
+
+    open_pipeline = _pipeline(_RaisingModerator(AttributeError("boom")))
+    open_node = open_pipeline._make_sanitize_node(
+        {"provider_enabled": True, "provider_fallback": "BLOCKED"}
+    )
+    assert _run(open_node, {"messages": messages}) == {}
+
+    closed_pipeline = _pipeline(_RaisingModerator(ValueError("boom")))
+    closed_node = closed_pipeline._make_sanitize_node(
+        {
+            "provider_enabled": True,
+            "provider_fallback": "BLOCKED",
+            "provider_fail_open": False,
+        }
+    )
+    update = _run(closed_node, {"messages": messages})
+    assert update["messages"][0].content == "BLOCKED"
+
+
+def test_enabled_provider_without_credentials_is_not_silently_skipped() -> None:
+    settings = Settings(
+        moderation_provider="azure",
+        moderation_azure_endpoint="",
+        moderation_azure_key="",
+    )
+    pipeline = LangGraphPipeline(tools=[], settings=settings)
+    messages = [AIMessage(content="reply", id="a1")]
+
+    open_node = pipeline._make_sanitize_node(
+        {"provider_enabled": True, "provider_fail_open": True, "provider_fallback": "BLOCKED"}
+    )
+    assert _run(open_node, {"messages": messages}) == {}
+
+    closed_node = pipeline._make_sanitize_node(
+        {
+            "provider_enabled": True,
+            "provider_fail_open": False,
+            "provider_fallback": "BLOCKED",
+        }
+    )
+    update = _run(closed_node, {"messages": messages})
+    assert update["messages"][0].content == "BLOCKED"
+
+
+def test_sanitize_checks_only_the_last_assistant_message_without_ids() -> None:
+    moderator = _FakeModerator(flagged=True)
+    node = _pipeline(moderator)._make_sanitize_node(
+        {"provider_enabled": True, "provider_fallback": "BLOCKED"}
+    )
+    messages = [AIMessage(content="old reply"), AIMessage(content="latest draft")]
+    _run(node, {"messages": messages})
+    assert moderator.calls == ["latest draft"]
+
+
+def test_validate_sanitize_provider_config_rejects_unusable_values() -> None:
+    assert validate_sanitize_provider_config({"provider_enabled": "false"}) is None
+    assert "unknown" in (
+        validate_sanitize_provider_config({"provider_enabled": True, "provider": "not-a-provider"})
+        or ""
+    )
+    assert "between" in (
+        validate_sanitize_provider_config({"provider_enabled": True, "provider_threshold": 0}) or ""
+    )
+    assert "between" in (
+        validate_sanitize_provider_config({"provider_enabled": True, "provider_severity": 0}) or ""
+    )
+    assert "provider_timeout" in (
+        validate_sanitize_provider_config({"provider_enabled": True, "provider_timeout": 600}) or ""
+    )
+    assert "URL" in (
+        validate_sanitize_provider_config(
+            {"provider_enabled": True, "provider_base_url": "http://host:badport/v1"}
+        )
+        or ""
+    )
+    assert (
+        validate_sanitize_provider_config({"provider_enabled": True, "provider_fail_open": "false"})
+        is None
+    )
+
+
+def test_validate_graph_config_rejects_unusable_provider() -> None:
+    config = _sanitize_graph({"provider_enabled": True, "provider": "not-a-provider"})
+    error = validate_graph_config(config, settings=Settings())
+    assert error is not None
+    assert "unknown moderation provider" in error
+
+    fail_closed = _sanitize_graph(
+        {
+            "provider_enabled": True,
+            "provider": "azure",
+            "provider_fail_open": False,
+            "provider_base_url": "https://resource.cognitiveservices.azure.com",
+        }
+    )
+    settings = Settings(moderation_azure_key="")
+    error = validate_graph_config(fail_closed, settings=settings)
+    assert error is not None
+    assert "MODERATION_AZURE_KEY" in error
+
+
+def test_stream_gate_holds_tokens_until_provider_sanitize_ran() -> None:
+    class _SafeModerator:
+        async def check(self, text: str) -> ModerationVerdict:
+            return ModerationVerdict(flagged=False)
+
+    class _FakeCompiled:
+        def __init__(self, events: list[tuple[str, object]]) -> None:
+            self.events = events
+
+        async def astream(self, graph_state, config=None, stream_mode=None):
+            for event in self.events:
+                yield event
+
+    config = _sanitize_graph({"provider_enabled": True, "provider_fallback": "BLOCKED"})
+    pipeline = LangGraphPipeline(config, tools=[], moderator=_SafeModerator())
+    pipeline._compiled = _FakeCompiled(
+        [
+            (
+                "messages",
+                (
+                    AIMessageChunk(content="unsafe draft", id="a1"),
+                    {"langgraph_node": "agent_node"},
+                ),
+            ),
+            ("updates", {"agent_node": {"messages": [AIMessage(content="unsafe draft", id="a1")]}}),
+            ("updates", {"sanitize_node": {"messages": [AIMessage(content="BLOCKED", id="a1")]}}),
+        ]
+    )
+    updates = _collect(pipeline.stream({"messages": [{"role": "user", "content": "hi"}]}))
+    streamed = " ".join(
+        update["messages"][-1]["content"]
+        for update in updates
+        if update.get("phase") == "streaming" and update.get("messages")
+    )
+    assert "unsafe" not in streamed
+    assert updates[-1]["phase"] == "done"
+    assert updates[-1]["messages"][-1]["content"] == "BLOCKED"
+
+
+def test_validate_sanitize_provider_config_rejects_embedded_credentials() -> None:
+    with_query = validate_sanitize_provider_config(
+        {"provider_enabled": True, "provider_base_url": "https://host/v1?key=secret"}
+    )
+    assert with_query is not None and "query" in with_query
+    with_userinfo = validate_sanitize_provider_config(
+        {"provider_enabled": True, "provider_base_url": "https://user:pass@host/v1"}
+    )
+    assert with_userinfo is not None and "credentials" in with_userinfo
+
+
+def test_provider_allowlist_rejects_unlisted_hosts() -> None:
+    settings = Settings(moderation_allowed_hosts="allowed.example")
+    with pytest.raises(ValueError, match="MODERATION_ALLOWED_HOSTS"):
+        resolve_provider_base_url(
+            "openai", {"provider_base_url": "https://evil.example/v1"}, settings
+        )
+    resolved = resolve_provider_base_url(
+        "openai", {"provider_base_url": "https://allowed.example/v1"}, settings
+    )
+    assert resolved == "https://allowed.example/v1"
+
+
+def test_provider_keys_are_not_reused_across_vendors() -> None:
+    settings = Settings(moderation_api_key="generic-key", moderation_azure_key="")
+    assert provider_credentials_error("azure", settings) == (
+        "MODERATION_AZURE_KEY is not configured"
+    )
+    assert provider_credentials_error("perspective", settings) == (
+        "MODERATION_PERSPECTIVE_KEY is not configured"
+    )
+
+
+def test_stream_gate_works_through_a_compiled_graph() -> None:
+    class _StreamingModel:
+        async def astream(self, messages, config=None):
+            yield AIMessageChunk(content="unsafe refund promise ")
+            yield AIMessageChunk(content="guaranteed refund")
+
+    class _FlaggedModerator:
+        async def check(self, text: str) -> ModerationVerdict:
+            return ModerationVerdict(flagged=True, categories={"violence": True}, reason="violence")
+
+    config = _sanitize_graph({"provider_enabled": True, "provider_fallback": "BLOCKED BY PROVIDER"})
+    pipeline = LangGraphPipeline(
+        config, tools=[], llm=_StreamingModel(), moderator=_FlaggedModerator()
+    )
+    updates = _collect(pipeline.stream({"messages": [{"role": "user", "content": "refund?"}]}))
+    visible = " ".join(
+        update["messages"][-1]["content"] for update in updates if update.get("messages")
+    )
+    assert "guaranteed" not in visible
+    assert updates[-1]["messages"][-1]["content"] == "BLOCKED BY PROVIDER"
+
+
+def _graph_with_parallel_gates(sanitize_config: dict) -> dict:
+    return {
+        "nodes": [
+            {"id": "__start__", "type": "start", "config": {}},
+            {"id": "system_node", "type": "system", "config": {"system_prompt": "Be nice."}},
+            {"id": "agent_node", "type": "agent", "config": {}},
+            {"id": "sanitize_node", "type": "sanitize", "config": sanitize_config},
+            {"id": "review_node", "type": "review", "config": {"on_block": "fallback"}},
+            {"id": "__end__", "type": "end", "config": {}},
+        ],
+        "edges": [
+            {"source": "__start__", "target": "system_node"},
+            {"source": "system_node", "target": "agent_node"},
+            {"source": "agent_node", "target": "sanitize_node"},
+            {"source": "agent_node", "target": "review_node"},
+            {"source": "sanitize_node", "target": "__end__"},
+            {"source": "review_node", "target": "__end__", "condition": "pass"},
+        ],
+    }
+
+
+def test_stream_gate_waits_for_parallel_gate_nodes() -> None:
+    class _SafeModerator:
+        async def check(self, text: str) -> ModerationVerdict:
+            return ModerationVerdict(flagged=False)
+
+    class _FakeCompiled:
+        def __init__(self, events: list[tuple[str, object]]) -> None:
+            self.events = events
+
+        async def astream(self, graph_state, config=None, stream_mode=None):
+            for event in self.events:
+                yield event
+
+    config = _graph_with_parallel_gates({"provider_enabled": True, "provider_fallback": "BLOCKED"})
+    pipeline = LangGraphPipeline(config, tools=[], moderator=_SafeModerator())
+    raw = "unsafe parallel draft"
+    pipeline._compiled = _FakeCompiled(
+        [
+            ("updates", {"agent_node": {"messages": [AIMessage(content=raw, id="a1")]}}),
+            ("updates", {"sanitize_node": {"messages": [AIMessage(content=raw, id="a1")]}}),
+            (
+                "updates",
+                {
+                    "review_node": {
+                        "messages": [
+                            AIMessage(
+                                id="a1",
+                                content=raw,
+                                response_metadata={"review_blocked": True},
+                            )
+                        ]
+                    }
+                },
+            ),
+            ("updates", {"agent_node": {"messages": [AIMessage(content="safe reply", id="a2")]}}),
+            ("updates", {"review_node": {"messages": []}}),
+        ]
+    )
+    updates = _collect(pipeline.stream({"messages": [{"role": "user", "content": "hi"}]}))
+    visible = " ".join(
+        update["messages"][-1]["content"]
+        for update in updates
+        if update.get("messages") and update.get("phase") == "streaming"
+    )
+    assert raw not in visible
+    assert updates[-1]["messages"][-1]["content"] == "safe reply"
+
+
+async def test_aliyun_refuses_pathological_chunk_counts() -> None:
+    calls: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        calls.append(1)
+        return httpx.Response(200, json={"Code": 200, "Data": {"labels": ""}})
+
+    moderator = AliyunTextModerationModerator(
+        endpoint="https://green-cip.cn-shanghai.aliyuncs.com",
+        access_key_id="aliyun-id",
+        access_key_secret="aliyun-secret",
+        timestamp="2024-01-01T00:00:00Z",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ModerationError):
+        await moderator.check("x" * (600 * 70))
+    assert calls == []
+
+
+async def test_openai_numeric_category_values_are_accepted() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"results": [{"flagged": False, "categories": {"hate": 0.0, "violence": 0.2}}]},
+        )
+
+    moderator = OpenAICompatibleModerator(
+        base_url="http://provider.test/v1", transport=httpx.MockTransport(handler)
+    )
+    verdict = await moderator.check("hello")
+    assert verdict.flagged is False
+    assert verdict.categories == {"violence": True}
+
+
+def test_validate_sanitize_provider_config_handles_invalid_ipv6_and_allowlist_normalisation() -> (
+    None
+):
+    invalid_ipv6 = validate_sanitize_provider_config(
+        {"provider_enabled": True, "provider_base_url": "http://[::1"}
+    )
+    assert invalid_ipv6 is not None
+
+    settings = Settings(moderation_allowed_hosts="allowed.example.,allowed.example:8443,[::1]")
+    assert (
+        resolve_provider_base_url(
+            "openai", {"provider_base_url": "https://ALLOWED.example/v1"}, settings
+        )
+        == "https://ALLOWED.example/v1"
+    )
+    assert (
+        resolve_provider_base_url(
+            "openai", {"provider_base_url": "https://allowed.example:8443/v1"}, settings
+        )
+        == "https://allowed.example:8443/v1"
+    )
+
+
+def _graph_with_conditional_gates() -> dict:
+    return {
+        "nodes": [
+            {"id": "__start__", "type": "start", "config": {}},
+            {"id": "system_node", "type": "system", "config": {"system_prompt": "Be nice."}},
+            {"id": "agent_node", "type": "agent", "config": {}},
+            {"id": "review_node", "type": "review", "config": {"on_block": "fallback"}},
+            {
+                "id": "sanitize_node",
+                "type": "sanitize",
+                "config": {"provider_enabled": True, "provider_fallback": "BLOCKED"},
+            },
+            {"id": "__end__", "type": "end", "config": {}},
+        ],
+        "edges": [
+            {"source": "__start__", "target": "system_node"},
+            {"source": "system_node", "target": "agent_node"},
+            {"source": "agent_node", "target": "review_node", "condition": "respond"},
+            {"source": "agent_node", "target": "sanitize_node", "condition": "tool_call"},
+            {"source": "review_node", "target": "__end__", "condition": "pass"},
+            {"source": "sanitize_node", "target": "__end__"},
+        ],
+    }
+
+
+def test_stream_gate_ignores_gates_on_unchosen_conditional_branches() -> None:
+    class _SafeModerator:
+        async def check(self, text: str) -> ModerationVerdict:
+            return ModerationVerdict(flagged=False)
+
+    class _FakeCompiled:
+        def __init__(self, events: list[tuple[str, object]]) -> None:
+            self.events = events
+
+        async def astream(self, graph_state, config=None, stream_mode=None):
+            for event in self.events:
+                yield event
+
+    config = _graph_with_conditional_gates()
+    pipeline = LangGraphPipeline(config, tools=[], moderator=_SafeModerator())
+    pipeline._compiled = _FakeCompiled(
+        [
+            ("updates", {"agent_node": {"messages": [AIMessage(content="safe draft", id="a1")]}}),
+            ("updates", {"review_node": {"messages": []}}),
+        ]
+    )
+    updates = _collect(pipeline.stream({"messages": [{"role": "user", "content": "hi"}]}))
+    streaming = [update for update in updates if update.get("phase") == "streaming"]
+    assert len(streaming) == 1
+    assert streaming[0]["messages"][-1]["content"] == "safe draft"
+
+
+async def test_chunked_checks_allow_more_than_one_request_timeout() -> None:
+    calls: list[float] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1.0)
+        await asyncio.sleep(0.3)
+        return httpx.Response(200, json={"Code": 200, "Data": {"labels": ""}})
+
+    moderator = AliyunTextModerationModerator(
+        endpoint="https://green-cip.cn-shanghai.aliyuncs.com",
+        access_key_id="aliyun-id",
+        access_key_secret="aliyun-secret",
+        timeout=0.5,
+        timestamp="2024-01-01T00:00:00Z",
+        transport=httpx.MockTransport(handler),
+    )
+    text = "a" * 500 + " " + "b" * 500 + " " + "c" * 500
+    verdict = await moderator.check(text)
+    assert verdict.flagged is False
+    assert len(calls) >= 3
+
+
+async def test_openai_nan_category_raises_moderation_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"results": [{"flagged": False, "categories": {"hate": float("nan")}}]},
+        )
+
+    moderator = OpenAICompatibleModerator(
+        base_url="http://provider.test/v1", transport=httpx.MockTransport(handler)
     )
     with pytest.raises(ModerationError):
         await moderator.check("hello")

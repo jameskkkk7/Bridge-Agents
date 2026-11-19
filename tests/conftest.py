@@ -31,6 +31,8 @@ os.environ.update(
         "ALLOW_DEV_LOGIN": "true",
         "LLM_MODE": "mock",
         "OPENAI_API_KEY": "not-needed",
+        # Keep the suite independent from a developer's local .env file.
+        "AGENT_TOOLS_ENABLED": "false",
     }
 )
 

@@ -43,7 +43,14 @@ from bridge_agents.agent import AgentPipeline
 from bridge_agents.agent.prompts import DEFAULT_FALLBACK_MESSAGE, DEFAULT_REVIEW_PROMPT
 from bridge_agents.agent.tools import get_tools
 from bridge_agents.config import Settings, get_settings
-from bridge_agents.moderation import ModerationError, Moderator, create_moderator
+from bridge_agents.moderation import (
+    Moderator,
+    UnavailableModerator,
+    build_configured_moderator,
+    canonical_provider,
+    parse_bool_setting,
+    redact_secret_urls,
+)
 from bridge_agents.rag.format import format_context_blocks
 from bridge_agents.rag.knowledge import KnowledgeBase, get_knowledge
 
@@ -88,6 +95,27 @@ def _float_setting(value: Any, fallback: float) -> float:
         return float(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _bool_setting(value: Any, fallback: bool, *, name: str) -> bool:
+    """Read a permissive boolean, logging instead of guessing silently."""
+    parsed = parse_bool_setting(value)
+    if parsed is None:
+        if value is not None:
+            LOGGER.warning("sanitize node: %s=%r is not a boolean; using %s", name, value, fallback)
+        return fallback
+    return parsed
+
+
+def _log_provider_failure(label: str, exc: Exception, fail_open: bool) -> None:
+    """Log a provider failure without leaking query-string credentials."""
+    LOGGER.warning(
+        "provider moderation failed (%s, %s): %s; %s",
+        label,
+        type(exc).__name__,
+        redact_secret_urls(str(exc))[:500],
+        "failing open" if fail_open else "using fallback",
+    )
 
 
 def _inject_retrieval_context(messages: list, context: str) -> list:
@@ -196,6 +224,9 @@ class LangGraphPipeline(AgentPipeline):
         self._retrieval_node_ids = {
             node["id"] for node in self._nodes.values() if node["type"] in _RETRIEVAL_NODE_KINDS
         }
+        self._provider_sanitize_ids = self._compute_provider_sanitize_ids()
+        self._conditional_successors = self._compute_conditional_successors()
+        self._stream_gate_ids = self._compute_stream_gate_ids()
         self._compiled = self._assemble().compile()
         LOGGER.info(
             "agent graph compiled with %d node(s); tools bound=%d",
@@ -240,6 +271,86 @@ class LangGraphPipeline(AgentPipeline):
         if node_id == "__end__":
             return END
         return node_id
+
+    def _reachable_nodes(self, start: str) -> set[str]:
+        """Return the node ids reachable from ``start`` through any graph edge."""
+        adjacency: dict[str, set[str]] = {}
+        for edge in self._graph_config.get("edges", []):
+            source = self._graph_ref(edge["source"])
+            target = self._graph_ref(edge["target"])
+            adjacency.setdefault(source, set()).add(target)
+        reachable: set[str] = set()
+        stack = [start]
+        while stack:
+            current = stack.pop()
+            for target in adjacency.get(current, set()):
+                if target == END or target in reachable:
+                    continue
+                reachable.add(target)
+                stack.append(target)
+        return reachable
+
+    def _compute_conditional_successors(self) -> dict[str, set[str]]:
+        successors: dict[str, set[str]] = {}
+        for edge in self._graph_config.get("edges", []):
+            if not edge.get("condition"):
+                continue
+            source = self._graph_ref(edge["source"])
+            successors.setdefault(source, set()).add(self._graph_ref(edge["target"]))
+        return successors
+
+    def _prune_skipped_gates(
+        self, pending: set[str], executed: set[str], next_nodes: set[str]
+    ) -> None:
+        """Drop gates that only live on an unchosen conditional branch.
+
+        A conditional edge selects exactly one successor, so once a different
+        successor runs, gates reachable only through the other branch cannot
+        execute this turn; waiting for them would disable streaming entirely.
+        """
+        for source in executed:
+            successors = self._conditional_successors.get(source)
+            if not successors:
+                continue
+            chosen = successors & next_nodes
+            if not chosen:
+                continue
+            unchosen = successors - chosen
+            if not unchosen:
+                continue
+            reachable_from_chosen: set[str] = set()
+            for target in chosen:
+                reachable_from_chosen |= self._reachable_nodes(target) | {target}
+            reachable_from_unchosen: set[str] = set()
+            for target in unchosen:
+                reachable_from_unchosen |= self._reachable_nodes(target) | {target}
+            for gate_id in list(pending):
+                if gate_id in chosen or gate_id in reachable_from_chosen:
+                    continue
+                if gate_id in reachable_from_unchosen:
+                    pending.discard(gate_id)
+                    LOGGER.debug("stream gate %s skipped with its conditional branch", gate_id)
+
+    def _compute_provider_sanitize_ids(self) -> set[str]:
+        """Return sanitize nodes that call a provider moderation API."""
+        ids: set[str] = set()
+        for node in self._nodes.values():
+            if node.get("type") != "sanitize":
+                continue
+            config = node.get("config") or {}
+            if parse_bool_setting(config.get("provider_enabled")) is True:
+                ids.add(node["id"])
+        return ids
+
+    def _compute_stream_gate_ids(self) -> frozenset[str]:
+        """Nodes whose verdict must be known before text may be streamed."""
+        gate_ids = set(self._review_node_ids)
+        if self._provider_sanitize_ids:
+            reachable_from_replies: set[str] = set()
+            for reply_id in self._reply_node_ids:
+                reachable_from_replies |= self._reachable_nodes(reply_id)
+            gate_ids |= self._provider_sanitize_ids & reachable_from_replies
+        return frozenset(gate_ids)
 
     def _node_for(self, node: dict) -> Any:
         """Build the callable (or runnable) for one configured node."""
@@ -379,164 +490,50 @@ class LangGraphPipeline(AgentPipeline):
         mask = re.compile("|".join(re.escape(word) for word in words)) if words else None
         replacement = config.get("replacement") or "***"
 
-        provider_enabled = bool(config.get("provider_enabled"))
+        provider_enabled = _bool_setting(
+            config.get("provider_enabled"), False, name="provider_enabled"
+        )
+        provider_fail_open = _bool_setting(
+            config.get("provider_fail_open"), True, name="provider_fail_open"
+        )
         provider_fallback = str(
             config.get("provider_fallback")
             or "This reply was blocked by the provider moderation service."
         )
-        provider_fail_open = config.get("provider_fail_open", True) is not False
+        provider_label = "local"
         moderator = self._moderator
         if provider_enabled and moderator is None:
-            provider = (
-                str(config.get("provider") or self._settings.moderation_provider or "openai")
-                .strip()
-                .lower()
-            )
-            timeout = _float_setting(
-                config.get("provider_timeout"),
-                float(self._settings.moderation_timeout),
-            )
-            if provider == "azure":
-                base_url = str(
-                    config.get("provider_base_url") or self._settings.moderation_azure_endpoint
-                ).strip()
-                api_key = str(
-                    self._settings.moderation_azure_key or self._settings.moderation_api_key
-                )
-                api_version = str(
-                    config.get("provider_api_version")
-                    or self._settings.moderation_azure_api_version
-                )
-                severity = _int_setting(
-                    config.get("provider_severity"),
-                    self._settings.moderation_azure_severity,
-                    minimum=0,
-                )
-                if base_url and api_key:
-                    moderator = create_moderator(
-                        "azure",
-                        base_url=base_url,
-                        api_key=api_key,
-                        timeout=timeout,
-                        api_version=api_version,
-                        severity_threshold=severity,
-                    )
-                else:
-                    LOGGER.warning("sanitize node: Azure endpoint/key is incomplete")
-            elif provider == "perspective":
-                base_url = str(config.get("provider_base_url") or "").strip()
-                api_key = str(
-                    self._settings.moderation_perspective_key or self._settings.moderation_api_key
-                )
-                threshold = _float_setting(
-                    config.get("provider_threshold"),
-                    self._settings.moderation_perspective_threshold,
-                )
-                if api_key:
-                    moderator = create_moderator(
-                        "perspective",
-                        base_url=base_url,
-                        api_key=api_key,
-                        timeout=timeout,
-                        threshold=threshold,
-                        language=str(config.get("provider_language") or "en"),
-                    )
-                else:
-                    LOGGER.warning(
-                        "sanitize node requested Perspective but no API key is configured"
-                    )
-            elif provider in ("aliyun", "alibaba", "aliyun-green", "green"):
-                region = str(
-                    config.get("provider_region")
-                    or self._settings.moderation_aliyun_region
-                    or "cn-shanghai"
-                ).strip()
-                base_url = str(
-                    config.get("provider_base_url")
-                    or self._settings.moderation_aliyun_endpoint
-                    or f"https://green-cip.{region}.aliyuncs.com"
-                ).strip()
-                access_key_id = self._settings.moderation_aliyun_access_key_id
-                access_key_secret = self._settings.moderation_aliyun_access_key_secret
-                service = str(
-                    config.get("provider_service")
-                    or self._settings.moderation_aliyun_service
-                    or "comment_detection"
-                )
-                if access_key_id and access_key_secret:
-                    moderator = create_moderator(
-                        "aliyun",
-                        base_url=base_url,
-                        access_key_id=access_key_id,
-                        access_key_secret=access_key_secret,
-                        service=service,
-                        timeout=timeout,
-                        region=region,
-                    )
-                else:
-                    LOGGER.warning("sanitize node: Alibaba Cloud AccessKey is not configured")
-            elif provider in ("tencent", "tms", "tencent-tms"):
-                region = str(
-                    config.get("provider_region")
-                    or self._settings.moderation_tencent_region
-                    or "ap-guangzhou"
-                ).strip()
-                base_url = str(
-                    config.get("provider_base_url")
-                    or self._settings.moderation_tencent_endpoint
-                    or "https://tms.tencentcloudapi.com"
-                ).strip()
-                secret_id = self._settings.moderation_tencent_secret_id
-                secret_key = self._settings.moderation_tencent_secret_key
-                biz_type = str(
-                    config.get("provider_biz_type")
-                    or self._settings.moderation_tencent_biz_type
-                    or ""
-                )
-                if secret_id and secret_key:
-                    moderator = create_moderator(
-                        "tencent",
-                        base_url=base_url,
-                        access_key_id=secret_id,
-                        access_key_secret=secret_key,
-                        region=region,
-                        biz_type=biz_type,
-                        timeout=timeout,
-                    )
-                else:
-                    LOGGER.warning(
-                        "sanitize node: Tencent Cloud SecretId/SecretKey is not configured"
-                    )
-            elif provider in ("openai", "openai-compatible", "openai_compatible"):
-                base_url = str(
-                    config.get("provider_base_url")
-                    or self._settings.moderation_base_url
-                    or self._settings.openai_base_url
-                ).strip()
-                api_key = str(self._settings.moderation_api_key or self._settings.openai_api_key)
-                if base_url:
-                    moderator = create_moderator(
-                        "openai",
-                        base_url=base_url,
-                        api_key=api_key,
-                        model=str(config.get("provider_model") or self._settings.moderation_model),
-                        timeout=timeout,
-                    )
-                else:
-                    LOGGER.warning("sanitize node: moderation base URL is missing")
+            raw_provider = config.get("provider") or self._settings.moderation_provider or "openai"
+            provider = canonical_provider(raw_provider)
+            provider_label = provider or str(raw_provider)
+            if provider is None:
+                reason = f"unknown moderation provider {raw_provider!r}"
+                LOGGER.error("sanitize node: %s; provider moderation unavailable", reason)
+                moderator = UnavailableModerator(reason)
             else:
-                LOGGER.warning("sanitize node: unknown moderation provider %r", provider)
+                try:
+                    moderator = build_configured_moderator(provider, config, self._settings)
+                except Exception as exc:
+                    reason = redact_secret_urls(str(exc))
+                    LOGGER.error(
+                        "sanitize node: provider moderation is not usable (%s): %s",
+                        provider_label,
+                        reason,
+                    )
+                    moderator = UnavailableModerator(reason)
+        elif provider_enabled:
+            provider_label = "injected"
 
         async def sanitize_node(state: _GraphState) -> dict:
-            if mask is None and not (provider_enabled and moderator is not None):
+            if mask is None and not provider_enabled:
                 return {}
             messages = state.get("messages", [])
-            latest_ai_id: str | None = None
-            for message in messages:
-                if isinstance(message, AIMessage) and message.id:
-                    latest_ai_id = message.id
+            latest_ai_index: int | None = None
+            for index, message in enumerate(messages):
+                if isinstance(message, AIMessage):
+                    latest_ai_index = index
             repaired: list = []
-            for message in messages:
+            for index, message in enumerate(messages):
                 content = getattr(message, "content", None)
                 if not isinstance(content, str):
                     continue
@@ -545,23 +542,21 @@ class LangGraphPipeline(AgentPipeline):
                     provider_enabled
                     and moderator is not None
                     and isinstance(message, AIMessage)
-                    and message.id == latest_ai_id
+                    and index == latest_ai_index
                     and cleaned.strip()
                 ):
                     try:
                         verdict = await moderator.check(cleaned)
-                    except ModerationError:
-                        LOGGER.warning(
-                            "provider moderation failed; %s",
-                            "failing open" if provider_fail_open else "using fallback",
-                        )
+                    except Exception as exc:  # provider bugs must not break the reply
+                        _log_provider_failure(provider_label, exc, provider_fail_open)
                         if not provider_fail_open:
                             cleaned = provider_fallback
                     else:
                         if verdict.flagged:
                             LOGGER.warning(
-                                "provider moderation flagged the latest reply: %s",
-                                verdict.reason or "flagged",
+                                "provider moderation flagged the latest reply (%s): %s",
+                                provider_label,
+                                redact_secret_urls(verdict.reason or "flagged")[:500],
                             )
                             cleaned = provider_fallback
                 if cleaned != content:
@@ -795,8 +790,10 @@ class LangGraphPipeline(AgentPipeline):
         yield {**state, "phase": "start"}
 
         reply_parts: dict[str, str] = {}
-        gate_active = bool(self._review_node_ids)
+        gate_active = bool(self._stream_gate_ids)
         gate_open = False
+        pending_gate_ids = set(self._stream_gate_ids)
+        last_executed: set[str] = set()
 
         async for mode, payload in self._compiled.astream(
             graph_state, config, stream_mode=["updates", "messages"]
@@ -823,6 +820,10 @@ class LangGraphPipeline(AgentPipeline):
                 }
                 continue
 
+            payload_nodes = set(payload or {})
+            if last_executed:
+                self._prune_skipped_gates(pending_gate_ids, last_executed, payload_nodes)
+            last_executed = payload_nodes
             for node_name, node_output in (payload or {}).items():
                 if node_name in self._retrieval_node_ids and node_output:
                     sources = node_output.get("retrieved")
@@ -861,18 +862,23 @@ class LangGraphPipeline(AgentPipeline):
                     )
                     if not metadata.get("is_error"):
                         changed = True
-                if node_name in self._review_node_ids:
-                    blocked = any(
+                just_opened = False
+                if node_name in self._stream_gate_ids:
+                    pending_gate_ids.discard(node_name)
+                    blocked = node_name in self._review_node_ids and any(
                         isinstance(message, AIMessage)
                         and (getattr(message, "response_metadata", {}) or {}).get("review_blocked")
                         for message in produced
                     )
                     if blocked:
                         gate_open = False
-                    else:
+                    elif not pending_gate_ids:
+                        # Every gate node on the executed path has produced a
+                        # verdict; only now is the buffered text safe to send.
+                        just_opened = not gate_open
                         gate_open = True
                         changed = changed or bool(reply_parts)
-                if changed and (not gate_active or gate_open):
+                if (changed or just_opened) and (not gate_active or gate_open):
                     yield {
                         **state,
                         "messages": list(incoming)

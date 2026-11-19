@@ -32,6 +32,7 @@ from app.services.model_config_service import (
     clear_override,
     describe,
     load_override,
+    resolve_settings,
     save_override,
 )
 from app.services.runtime_config_service import RuntimeConfigService
@@ -86,7 +87,9 @@ async def save_agent_graph_config(
     was.
     """
     config = payload.model_dump()
-    error = validate_graph_config(config)
+    base_settings = request.app.state.settings
+    override = await load_override(db, base_settings, include_secret=True)
+    error = validate_graph_config(config, settings=resolve_settings(base_settings, override))
     if error is not None:
         raise ValidationError(error)
     await RuntimeConfigService(db).set_agent_graph_config(config)

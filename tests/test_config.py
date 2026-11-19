@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+
 from app.config import Settings, get_settings
+from app.core.logging_config import setup_logging
 
 
 def test_comma_separated_values_are_exposed_as_lists() -> None:
@@ -36,3 +39,16 @@ def test_secure_demo_defaults_are_off() -> None:
 
 def test_get_settings_is_cached() -> None:
     assert get_settings() is get_settings()
+
+
+def test_http_client_loggers_do_not_log_provider_urls() -> None:
+    root = logging.getLogger()
+    handlers = list(root.handlers)
+    level = root.level
+    try:
+        setup_logging(Settings())
+        assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
+        assert logging.getLogger("httpcore").getEffectiveLevel() >= logging.WARNING
+    finally:
+        root.handlers[:] = handlers
+        root.setLevel(level)

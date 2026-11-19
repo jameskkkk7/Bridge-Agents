@@ -11,13 +11,39 @@ from typing import Any
 
 from bridge_agents.agent.pipeline import LangGraphPipeline
 from bridge_agents.agent.prompts import DEFAULT_FALLBACK_MESSAGE, DEFAULT_SYSTEM_PROMPT
-from bridge_agents.config import Settings
+from bridge_agents.config import Settings, get_settings
+from bridge_agents.moderation import (
+    canonical_provider,
+    parse_bool_setting,
+    provider_credentials_error,
+    resolve_provider_base_url,
+    validate_sanitize_provider_config,
+)
+
+AZURE_PROVIDERS = frozenset({"azure", "azure-openai", "azure_openai"})
 
 
 def build_chat_model(settings: Settings) -> Any:
-    """Create the OpenAI-compatible model used by agent and custom nodes."""
-    from langchain_openai import ChatOpenAI
+    """Create the chat model for the configured provider.
 
+    Azure OpenAI uses the native Azure client (deployment + api-version); every
+    other provider (OpenAI, DeepSeek, Qwen, Kimi, GLM, Doubao, Wenxin, MiniMax,
+    Gemini, SiliconFlow, OpenRouter, Ollama, compatible gateways, ...) speaks the
+    OpenAI chat-completions protocol, so one client covers them all.
+    """
+    from langchain_openai import AzureChatOpenAI, ChatOpenAI
+
+    provider = (settings.llm_provider or "openai").strip().lower()
+    if provider in AZURE_PROVIDERS:
+        return AzureChatOpenAI(
+            azure_endpoint=settings.openai_base_url,
+            api_key=settings.openai_api_key,
+            azure_deployment=settings.openai_model,
+            api_version=settings.openai_api_version or "2024-10-21",
+            temperature=settings.openai_temperature,
+            timeout=settings.openai_timeout,
+            max_retries=settings.openai_max_retries,
+        )
     options: dict[str, Any] = {}
     if not settings.openai_thinking_enabled:
         options["extra_body"] = {"thinking": {"type": "disabled"}}
@@ -91,17 +117,58 @@ def _has_system_prompt(graph_config: dict) -> bool:
     )
 
 
-def validate_graph_config(graph_config: dict | None = None) -> str | None:
+def _validate_sanitize_node(node: dict, settings: Settings) -> str | None:
+    """Validate one sanitize node, including provider environment readiness."""
+    config = node.get("config") or {}
+    prefix = f"sanitize node {node.get('id')!r}: "
+    error = validate_sanitize_provider_config(config)
+    if error is not None:
+        return prefix + error
+    if parse_bool_setting(config.get("provider_enabled")) is not True:
+        return None
+    raw_provider = config.get("provider") or settings.moderation_provider
+    provider = canonical_provider(raw_provider)
+    if provider is None:
+        return prefix + f"unknown moderation provider: {raw_provider!r}"
+    try:
+        resolve_provider_base_url(provider, config, settings)
+    except ValueError as exc:
+        return prefix + str(exc)
+    if parse_bool_setting(config.get("provider_fail_open")) is False:
+        missing = provider_credentials_error(provider, settings)
+        if missing:
+            # Fail-closed is a safety promise: refuse to save a graph that
+            # would bypass the provider because a credential is missing.
+            return prefix + f"provider_fail_open=false requires {missing}"
+    return None
+
+
+def validate_graph_config(
+    graph_config: dict | None = None, settings: Settings | None = None
+) -> str | None:
     """Compile the graph and check that it defines an agent role.
+
+    Also validates every sanitize node's provider settings so a graph that
+    claims provider moderation but cannot actually call the provider is
+    rejected instead of silently passing replies.
 
     Returns an error message, or ``None`` when the configuration is usable.
     """
+    effective_settings = settings or get_settings()
     try:
-        LangGraphPipeline(graph_config=graph_config)
+        LangGraphPipeline(graph_config=graph_config, settings=effective_settings)
     except Exception as exc:
         return f"The graph could not be compiled: {exc}"
-    if graph_config is not None and not _has_system_prompt(graph_config):
+    if graph_config is None:
+        return None
+    if not _has_system_prompt(graph_config):
         return "The graph needs a 'system' node with a non-empty prompt so the agent has a role."
+    for node in graph_config.get("nodes", []):
+        if node.get("type") != "sanitize":
+            continue
+        error = _validate_sanitize_node(node, effective_settings)
+        if error is not None:
+            return error
     return None
 
 

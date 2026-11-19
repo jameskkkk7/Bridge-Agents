@@ -111,3 +111,49 @@ async def test_save_then_reset_restores_the_default_graph(client: AsyncClient) -
         "/api/v1/admin/runtime-config/agent-graph-config", headers=_bearer(token)
     )
     assert restored.json()["nodes"][1]["config"]["system_prompt"] != "You are a test bot."
+
+
+def _graph_with_sanitize(sanitize_config: dict) -> dict:
+    nodes = [
+        {"id": "__start__", "type": "start", "config": {}},
+        {"id": "system_node", "type": "system", "config": {"system_prompt": "Be nice."}},
+        {"id": "retrieval_node", "type": "retrieval", "config": {"top_k": 4, "min_score": 0.12}},
+        {"id": "agent_node", "type": "agent", "config": {}},
+        {"id": "review_node", "type": "review", "config": {"on_block": "fallback"}},
+        {"id": "sanitize_node", "type": "sanitize", "config": sanitize_config},
+        {"id": "__end__", "type": "end", "config": {}},
+    ]
+    edges = [
+        {"source": "__start__", "target": "system_node"},
+        {"source": "system_node", "target": "retrieval_node"},
+        {"source": "retrieval_node", "target": "agent_node"},
+        {"source": "agent_node", "target": "review_node", "condition": "respond"},
+        {"source": "review_node", "target": "sanitize_node", "condition": "pass"},
+        {"source": "review_node", "target": "agent_node", "condition": "block"},
+        {"source": "sanitize_node", "target": "__end__"},
+    ]
+    return {"nodes": nodes, "edges": edges}
+
+
+async def test_save_rejects_an_unusable_provider_configuration(client: AsyncClient) -> None:
+    token = await _login(client, "agent")
+
+    unusable = _graph_with_sanitize(
+        {"provider_enabled": True, "provider": "azure", "provider_fail_open": True}
+    )
+    response = await client.put(
+        "/api/v1/admin/runtime-config/agent-graph-config",
+        json=unusable,
+        headers=_bearer(token),
+    )
+    assert response.status_code == 422
+    assert "sanitize node" in response.json()["message"]
+
+    usable = _graph_with_sanitize({"provider_enabled": True, "provider": "openai"})
+    response = await client.put(
+        "/api/v1/admin/runtime-config/agent-graph-config",
+        json=usable,
+        headers=_bearer(token),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["saved"] is True

@@ -32,3 +32,8 @@ def setup_logging(settings: Settings) -> None:
     logging.getLogger("uvicorn.access").setLevel(logging.INFO)
     logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    # HTTP clients log request URLs at INFO. Provider API keys may travel in a
+    # query string (Google Perspective uses ``?key=``), so keep them out of the
+    # default logs; our own redaction handles exception messages.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
