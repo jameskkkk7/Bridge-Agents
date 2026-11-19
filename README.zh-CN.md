@@ -122,8 +122,9 @@ uv run python scripts/init_db.py
 uv run uvicorn app.main:app --reload
 ```
 
-前端开发：界面使用 React 19 + TypeScript + Vite，样式为手写 CSS（无 UI 框架），
-自托管可变字体（Kumbh Sans、Noto Sans SC、Roboto Mono），主题采用浅色/深色
+前端开发：界面使用 React 19 + TypeScript + Vite 6，**Tailwind CSS 4 + shadcn/ui
+（Radix 原语）** 组件（Button、Card、Input、Textarea、Label、Badge、Tabs）、
+lucide 图标、自托管可变字体（Kumbh Sans、Noto Sans SC、Roboto Mono）与浅色/深色
 token 系统；代码在 `web/`。执行
 `cd web && npm install && npm run dev`，Vite 会把 `/api` 与 `/ws` 代理到本地
 API。接口、配置、质量门禁等工程细节见
@@ -140,6 +141,7 @@ API。接口、配置、质量门禁等工程细节见
 | 不改部署就能换模型或提示词 | ✅ 工作台配置，下一条消息即生效 | 通常要改环境变量并重启 |
 | 手机上也能用 | ✅ 客户聊天、客服台、工作台全部响应式适配 | 管理后台往往只考虑桌面 |
 | 浅色 / 深色主题 | ✅ 一套 token 系统，顶栏切换并记住选择 | 往往只有单一主题 |
+| 现代组件体系 | ✅ Tailwind 4 + shadcn/ui（Radix），组件源码在仓库内 | 往往是封闭组件库 |
 | 离线演示与评估 | ✅ 一条命令 + mock 模型 | 往往云端优先 |
 
 低代码平台很适合拖拽式原型；Bridge-Agents 面向的是**回复带有商业或法律分量**
@@ -243,6 +245,7 @@ PostgreSQL 或 MySQL。
 - [x] 工作台配置：运行时模型配置（API Key 加密）与客服提示词编辑
 - [x] 手机与平板响应式界面（三个页面全部适配）
 - [x] 浅色 / 深色主题与自托管可变字体
+- [x] Tailwind CSS 4 + shadcn/ui（Radix）组件迁移
 - [ ] 重排序、多租户知识库与可视化流程编辑器
 - [ ] 第二个消息平台接入（Slack）与 Webhook API
 - [ ] 可视化流程编辑器与可嵌入 widget

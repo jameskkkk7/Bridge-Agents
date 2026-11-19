@@ -132,9 +132,10 @@ uv run python scripts/init_db.py
 uv run uvicorn app.main:app --reload
 ```
 
-Browser development: the UI is React 19 + TypeScript + Vite with hand-written
-CSS (no UI framework), self-hosted variable fonts (Kumbh Sans, Noto Sans SC,
-Roboto Mono) and a light/dark theme token system. It lives in `web/`. Run
+Browser development: the UI is React 19 + TypeScript + Vite 6, **Tailwind CSS 4
+with shadcn/ui components on Radix primitives** (Button, Card, Input, Textarea,
+Label, Badge, Tabs), lucide icons, self-hosted variable fonts (Kumbh Sans,
+Noto Sans SC, Roboto Mono) and a light/dark token system. It lives in `web/`. Run
 `cd web && npm install && npm run dev` and it proxies `/api` and `/ws` to the
 local API. Engineering details — API, configuration, quality gates — live in
 [docs/architecture.md](docs/architecture.md).
@@ -150,6 +151,7 @@ local API. Engineering details — API, configuration, quality gates — live in
 | Change the model or support prompt without a deploy | ✅ Studio settings, applied to the next message | usually an environment change and restart |
 | Works on a phone | ✅ responsive customer chat, support desk and Studio | admin consoles are often desktop-first |
 | Light and dark themes | ✅ one token system, switch in the header, remembered | often a single fixed theme |
+| Modern component system | ✅ Tailwind 4 + shadcn/ui (Radix), vendored and readable | often a closed component library |
 | Works offline for demos and evaluation | ✅ one command with a mock model | often cloud-first |
 
 Low-code platforms are great for drag-and-drop prototyping. Bridge-Agents is for
@@ -260,6 +262,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 - [x] Studio settings: runtime model configuration with an encrypted API key, and a support-prompt editor
 - [x] Responsive UI for phones and tablets across all three views
 - [x] Light and dark themes with self-hosted variable fonts
+- [x] Tailwind CSS 4 + shadcn/ui (Radix) component migration
 - [ ] Second messaging integration (Slack) and a webhook API
 - [ ] Reranking, per-tenant knowledge bases and a visual flow editor
 - [ ] Embeddable widget

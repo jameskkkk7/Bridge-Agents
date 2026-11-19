@@ -136,16 +136,22 @@ channel must fail closed.
 **Cost:** turning the channel on requires a restart with complete configuration;
 there is no partial "read-only" mode in v0.1.
 
-## 12. The browser demo uses no UI framework
+## 12. The browser demo uses Tailwind 4 + shadcn/ui
 
-**Decision:** `web/` is React + TypeScript with hand-written CSS, under a hard
-budget of 12 source files and 900 lines.
+**Decision:** `web/` is React + TypeScript with Tailwind CSS 4 and shadcn/ui
+components generated on top of Radix primitives (Button, Card, Input, Textarea,
+Label, Badge, Tabs). The generated components are vendored in
+`web/src/components/ui/` and styled through the token set in `index.css`.
 
-**Why:** the demo exists to prove the runtime, not to become a product surface.
-A small codebase is reviewable and cannot quietly grow into a second project.
+**Why:** the earlier hand-written CSS was small but slow to extend, and matching
+the reference product surface by hand meant reimplementing focus rings, tabs,
+form states and dark-mode variants repeatedly. shadcn gives accessible Radix
+behaviour and consistent Tailwind styling while the code stays ours; a hard
+budget and one shared token set keep it from becoming a second product.
 
-**Cost:** no component library, no drag-and-drop flow editor yet, and some
-interaction patterns are implemented directly rather than reused.
+**Cost:** ~36 npm packages (Tailwind, Radix primitives, cva, clsx, merge) and a
+larger JS/CSS bundle than the hand-written version; generated components are
+ours to maintain. The mobile and i18n work still lives in our own code.
 
 ## 13. Retrieval is a graph node, not hidden middleware
 
@@ -275,9 +281,10 @@ own build.
 
 ## 21. One UI with light and dark themes, and self-hosted fonts
 
-**Decision:** both themes come from one set of CSS variables on
-`[data-theme]`; React only switches the attribute. Fonts are bundled through
-Fontsource (Kumbh Sans, Noto Sans SC, Roboto Mono) instead of loaded from a CDN.
+**Decision:** both themes come from one set of CSS variables exposed as
+Tailwind theme tokens; React only toggles the `.dark` class. Fonts are bundled
+through Fontsource (Kumbh Sans, Noto Sans SC, Roboto Mono) instead of loaded
+from a CDN.
 
 **Why:** one component tree means both themes stay feature-complete and the
 mobile/bilingual work is not duplicated. Self-hosting removes a third-party

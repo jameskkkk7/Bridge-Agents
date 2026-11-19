@@ -300,9 +300,10 @@ python -m venv /tmp/ba && /tmp/ba/bin/pip install dist/bridge_agents-0.1.0-py3-n
 
 ## Web demo
 
-`web/` is a small React 19 + TypeScript single-page app built with Vite 6 and
-hand-written CSS (no UI framework, no Tailwind); it has two separate entry
-points sharing one bundle:
+`web/` is a small React 19 + TypeScript single-page app built with Vite 6,
+**Tailwind CSS 4 and shadcn/ui components on Radix primitives** (Button, Card,
+Input, Textarea, Label, Badge, Tabs); icons come from lucide-react. It has two
+separate entry points sharing one bundle:
 
 | Path | Entry | Purpose |
 |---|---|---|
@@ -319,11 +320,12 @@ hiding navigation is defence in depth rather than the only control.
 The visual system is one token set with light and dark variants (`data-theme` on
 `<html>`): neutral surfaces, a single accent, pill controls, restrained shadows
 and self-hosted variable fonts — Kumbh Sans for Latin UI text, Noto Sans SC for
-Chinese and Roboto Mono for code. `theme.tsx` persists the choice, follows
+Chinese and Roboto Mono for code. Tokens live in `web/src/index.css`
+(`@theme inline`, `:root` and `.dark`), the shadcn primitives live in
+`web/src/components/ui/`, and pages compose them with Tailwind utilities.
+`theme.tsx` toggles the `.dark` class, persists the choice, follows
 `prefers-color-scheme` on first visit, and an inline script in `index.html`
-applies it before the first paint to avoid a flash. Styles are split into
-`base`, `controls`, `chat`, `workspace` and `responsive` files under
-`web/src/styles/`, each under the 400-line project limit.
+applies it before the first paint to avoid a flash.
 
 The layout is responsive without a second app: breakpoints at 900, 640 and 380 px
 stack the navigation, turn every grid into one column, hide secondary table
@@ -338,9 +340,9 @@ The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionari
 `LanguageProvider` persists the choice in `localStorage`, detects the browser
 language on first visit and localizes known system messages (takeover/release).
 
-Front-end budget: 23 files (excluding the lockfile) and 3,279 lines including
-deployment assets; the hard limit is 400 lines per file, which every stylesheet
-and component respects. The theme system is the recent addition.
+Front-end budget: 29 files (excluding the lockfile) and 2,886 lines including
+deployment assets; the hard limit is 400 lines per file, which every component
+and page respects. The Tailwind/shadcn migration is the recent addition.
 
 ## One-command demo stack
 

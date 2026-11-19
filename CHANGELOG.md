@@ -51,6 +51,9 @@ conversations, with a deterministic offline demo.
   navigation and controls, restrained surfaces and self-hosted Kumbh Sans,
   Noto Sans SC and Roboto Mono fonts; the theme choice is remembered and applies
   before first paint.
+- **Component system:** migrated the browser demo to Tailwind CSS 4 + shadcn/ui
+  on Radix primitives (Button, Card, Input, Textarea, Label, Badge, Tabs) with
+  lucide icons, replacing the hand-written stylesheet.
 - **Library:** the core runtime is also packaged as a standalone
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,
