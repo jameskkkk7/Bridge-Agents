@@ -67,7 +67,43 @@ conversations, with a deterministic offline demo.
 - **Library:** the core runtime is also packaged as a standalone
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,
-  injection guard, rate limiter, settings and typed errors.
-- **Quality:** 233 offline tests, 92% combined line coverage of `app/core` and
+  injection guard, settings and typed errors.
+- **Demo chat experience:** reference-style composer with attachment sending,
+  a conversation-history sidebar with multiple conversations, automatic titles
+  from the first message, and a no-sign-in demo mode.
+- **Support desk clarity:** AI replies and human teammate replies are labelled
+  separately (`sender_kind` in the API and transcript), with an AI/human mode
+  badge per conversation.
+- **Model providers:** Studio -> Settings can configure OpenAI, Azure OpenAI
+  (native client) and mainstream OpenAI-compatible vendors (DeepSeek, Qwen,
+  Kimi, GLM, Doubao, ERNIE, MiniMax, SiliconFlow, OpenRouter, Gemini, Ollama
+  and custom gateways) through provider presets.
+- **UI polish:** rounded dropdown menus, bilingual provider/prompt copy and a
+  wider customer layout for the conversation sidebar.
+- **Quality:** 289 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
+
+### Fixed
+
+- **Provider moderation hardening:** malformed 200 responses and unexpected
+  provider exceptions now follow the configured fail-open/fail-closed policy
+  instead of crashing the reply or silently passing; enabling a provider without
+  its credentials is surfaced instead of skipped; Perspective API keys are kept
+  out of logs; long replies are split at each provider's text limit (600
+  characters for Alibaba Cloud, 10 000 for Azure and Tencent Cloud); provider
+  URLs, ranges and unknown provider names are validated on save; each vendor's
+  key is only used for that vendor; the optional `MODERATION_ALLOWED_HOSTS`
+  allow-list restricts provider destinations.
+- **Moderation streaming gate:** text is buffered until every gate node that can
+  actually run (provider-backed sanitize and/or review, including parallel
+  branches and conditional routing) has produced a verdict, so a blocked draft
+  is never streamed to the customer before the fallback replaces it.
+- **Upgrade note:** Azure and Perspective now require their dedicated
+  `MODERATION_AZURE_KEY` / `MODERATION_PERSPECTIVE_KEY`. `MODERATION_API_KEY` is
+  only used by the OpenAI-compatible adapter; it used to be a silent fallback for
+  the other two providers, which would leak one vendor's key to another. Set the
+  dedicated variables before upgrading.
+- **Studio numeric fields:** clearing a provider threshold/severity/timeout no
+  longer writes `0` (which flagged every reply); values are edited as text and
+  clamped to their documented ranges.

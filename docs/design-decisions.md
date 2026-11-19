@@ -318,15 +318,23 @@ small.
 optional provider check supports five adapters — OpenAI-compatible
 `/v1/moderations`, Azure AI Content Safety, Google Perspective, Alibaba Cloud
 TextModeration and Tencent Cloud TMS — for the latest assistant draft only,
-replacing a flagged draft with a configurable fallback. Provider failures fail
-open by default.
+replacing a flagged draft with a configurable fallback. Network failures,
+unexpected provider payloads and missing credentials all raise a moderation
+error; by default the reply fails open, while `provider_fail_open=false` turns
+the same paths into the configured fallback. Long replies are split at each
+provider's documented text limit, streamed text is held until the provider-backed
+sanitize node has run, and saving a fail-closed node without its credentials is
+rejected.
 
 **Why:** the local list is deterministic, free and cannot be silently disabled
 by an outage. Provider classifiers catch categories that a finite word list
 cannot enumerate. Checking only the latest draft avoids re-billing the whole
-conversation on every turn.
+conversation on every turn; a single, uniform failure path keeps one malformed
+response from breaking the conversation.
 
-**Cost:** one extra network call/latency for the sanitize node, provider false
-positives and an external dependency; the operator can choose fail-closed and
-pin the provider URL/model per node. API keys stay in the environment (or the
-runtime model key), never in the saved graph.
+**Cost:** one extra network call/latency for the sanitize node (more only when a
+long reply must be split), provider false positives and an external dependency;
+the operator can choose fail-closed, pin the provider URL/model per node and
+restrict hosts with `MODERATION_ALLOWED_HOSTS`. API keys stay in the environment
+(or the runtime model key for the OpenAI-compatible adapter), never in the saved
+graph, and each vendor's key is only used for that vendor.

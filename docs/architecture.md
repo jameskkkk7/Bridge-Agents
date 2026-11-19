@@ -103,11 +103,27 @@ OpenAI-compatible `/moderations`), `azure` (Azure AI Content Safety
 `comments:analyze`, toxicity threshold), `aliyun` (Alibaba Cloud Content
 Moderation `TextModeration` 2022-03-02, HMAC-SHA1 RPC signature) and `tencent`
 (Tencent Cloud TMS `TextModeration` 2020-12-29, TC3-HMAC-SHA256). Credentials
-stay in the environment (`MODERATION_API_KEY`, `MODERATION_AZURE_KEY`,
-`MODERATION_PERSPECTIVE_KEY`, `MODERATION_ALIYUN_ACCESS_KEY_*`,
-`MODERATION_TENCENT_SECRET_*`; the OpenAI adapter also falls back to the runtime
-model key). Provider errors fail open by default, while a fail-closed setting is
-available for deployments that must never pass an unclassified reply.
+stay in the environment: `MODERATION_API_KEY` belongs to the OpenAI-compatible
+adapter only, while Azure, Perspective, Alibaba Cloud and Tencent Cloud each use
+their dedicated variables — one vendor's key is never sent to another. Provider
+requests are split at the documented per-request text limits (600 characters for
+Alibaba Cloud `TextModeration`, 10,000 for Azure and Tencent Cloud) so long
+replies are classified in full; a reply that would need more than 64 requests is
+treated as a provider failure (the fail-open/fail-closed policy then applies)
+instead of being silently truncated.
+
+Provider failures — network errors, unexpected payloads and missing credentials —
+are turned into a moderation error and follow the configured policy: fail open
+by default, or replace the draft with the fallback when `provider_fail_open` is
+false. A graph that enables provider moderation is validated on save: the
+endpoint must be configured and well formed, numeric ranges and provider names
+are checked, and an explicitly fail-closed node is rejected while its credentials
+are missing, so a misconfiguration cannot silently bypass the gate. When a
+provider-backed sanitize node is reachable from a reply node, streamed text is
+buffered until every gate node on the executed path (sanitize and/or review,
+including parallel branches) has produced a verdict, so a blocked draft is never
+streamed first. The optional `MODERATION_ALLOWED_HOSTS` allow-list limits which
+hosts a graph editor can point provider requests at.
 
 The Alibaba Cloud and Tencent Cloud signers follow the official docs:
 [TextModeration 2022-03-02](https://www.alibabacloud.com/help/en/content-moderation/latest/api-green-2022-03-02-textmoderation),
@@ -136,7 +152,8 @@ by MIME type and `MAX_IMAGE_SIZE`.
 A human reply is a normal agent message, not a special path:
 
 * staff websockets can join any conversation; a staff message is stored with
-  `sender_type=AGENT` and broadcast to every client in the session, and it does
+  `sender_type=AGENT` with `sender_kind=ai` (human replies use `sender_kind=human`)
+and broadcast to every client in the session, and it does
   not trigger the AI (only customer messages do);
 * the support desk keeps a staff websocket open for the selected conversation,
   so customer messages appear live while the page is open;
@@ -278,6 +295,8 @@ credentials.
 | `RS256_PUBLIC_KEY_PATH` / `JWKS_URL` | empty | Used by the matching verifier |
 | `ALLOW_DEV_LOGIN` | `false` | Demo login; never mounted in production |
 | `LLM_MODE` | `mock` | `mock` keeps the demo reproducible |
+| `LLM_PROVIDER` | `openai` | Vendor preset: openai / azure / deepseek / qwen / moonshot / zhipu / volcengine / baidu / minimax / siliconflow / openrouter / gemini / anthropic / ollama / custom |
+| `OPENAI_API_VERSION` | `2024-10-21` | Azure OpenAI API version (ignored by OpenAI-compatible providers) |
 | `OPENAI_BASE_URL` / `OPENAI_MODEL` / `OPENAI_API_KEY` | mock endpoint / `mock-model` / `not-needed` | Any OpenAI-compatible endpoint |
 | `OPENAI_THINKING_ENABLED` | `false` | Compatibility switch for providers with a thinking flag |
 | `AGENT_TOOLS_ENABLED` / `AGENT_TOOLS` | `false` / `[]` in code, enabled in the example | Binding still requires a tool route in the graph |
@@ -294,10 +313,11 @@ credentials.
 | `MODERATION_BASE_URL` | empty (falls back to `OPENAI_BASE_URL`) | OpenAI-compatible endpoint base URL |
 | `MODERATION_API_KEY` | empty (falls back to the model key) | Token for the OpenAI-compatible adapter |
 | `MODERATION_MODEL` | `omni-moderation-latest` | OpenAI-compatible moderation model |
-| `MODERATION_TIMEOUT` | `5` | Provider request timeout in seconds |
+| `MODERATION_TIMEOUT` | `5` | Provider request timeout in seconds (0.5–30; out-of-range values are clamped) |
 | `MODERATION_AZURE_ENDPOINT` / `MODERATION_AZURE_KEY` | empty | Azure AI Content Safety resource root and key |
-| `MODERATION_AZURE_API_VERSION` / `MODERATION_AZURE_SEVERITY` | `2024-09-01` / `2` | Azure API version and severity threshold (0–7) |
-| `MODERATION_PERSPECTIVE_KEY` / `MODERATION_PERSPECTIVE_THRESHOLD` | empty / `0.7` | Perspective API key and toxicity threshold (0–1) |
+| `MODERATION_AZURE_API_VERSION` / `MODERATION_AZURE_SEVERITY` | `2024-09-01` / `2` | Azure API version and severity threshold (1–7; 0 would flag every reply) |
+| `MODERATION_PERSPECTIVE_KEY` / `MODERATION_PERSPECTIVE_THRESHOLD` | empty / `0.7` | Perspective API key and toxicity threshold (0.01–1) |
+| `MODERATION_ALLOWED_HOSTS` | empty | Optional comma-separated host allow-list for provider URLs; empty allows any host |
 | `MODERATION_ALIYUN_ACCESS_KEY_ID` / `MODERATION_ALIYUN_ACCESS_KEY_SECRET` | empty | Alibaba Cloud RAM AccessKey pair |
 | `MODERATION_ALIYUN_REGION` / `MODERATION_ALIYUN_ENDPOINT` | `cn-shanghai` / empty | Alibaba Cloud region and optional endpoint override |
 | `MODERATION_ALIYUN_SERVICE` | `comment_detection` | Alibaba Cloud moderation scene |
@@ -428,13 +448,13 @@ web demo and `http://localhost:8000/health` for the API.
 
 ```bash
 uv run pytest -q                                                            # 241 passed
-uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov-fail-under=70  # 92%
+uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov-fail-under=70  # 91%
 uv run ruff check .                                                         # clean
 uv run ruff format --check .                                                # clean
 uv run python scripts/check_sanitized.py                                    # exit 0
 ```
 
-Current snapshot: **241 tests** collected, **92%** combined line coverage of
+Current snapshot: **289 tests** collected, **91%** combined line coverage of
 `app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
 clean, and the repository sanitisation gate passes. The tree today is 4,188
 lines of application Python, a 2,765-line library, 4,317 lines of tests and a
@@ -467,7 +487,7 @@ app/
   ws/           websocket gateway (subscriptions, streaming, rate limiting)
   main.py       application factory and lifespan wiring
 packages/bridge_agents/  standalone core library (agent runtime, auth, guard, rate limit)
-tests/          177 offline tests (fake model, fake compiled graph, mock Lark transport)
+tests/          289 offline tests (fake model, fake compiled graph, mock Lark transport)
 docs/kb/        fictional product documentation used by the search tool
 docs/assets/    documentation artwork
 scripts/        init_db.py, check_sanitized.py, allowlist
@@ -485,6 +505,3 @@ for committed environment files, key material and absolute paths. Real
 credential values never live in the repository: they are read from a
 git-ignored local file or injected by CI, and the gate is covered by its own
 negative test (an injected probe fails the build).
-
-
-
