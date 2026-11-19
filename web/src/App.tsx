@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
+import { BrandMark } from "@/components/brand-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/i18n";
@@ -107,7 +108,7 @@ export default function App() {
             className="flex min-w-0 items-center gap-2.5 text-left"
             onClick={() => navigate("/admin")}
           >
-            <span className="size-8 shrink-0 rounded-lg bg-gradient-to-br from-neutral-900 to-neutral-600 shadow-sm dark:from-indigo-500 dark:to-violet-500" />
+            <BrandMark />
             <span className="min-w-0">
               <strong className="block truncate text-sm font-semibold tracking-tight">
                 Bridge-Agents
@@ -156,7 +157,7 @@ export default function App() {
     <div className="mx-auto min-h-dvh max-w-4xl px-3 pb-16 pt-3 sm:px-6 sm:pt-5">
       <header className="sticky top-2 z-40 mb-4 flex items-center gap-2 rounded-xl border border-border bg-background/85 px-3 py-2.5 shadow-sm backdrop-blur-md sm:gap-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="size-8 shrink-0 rounded-lg bg-gradient-to-br from-neutral-900 to-neutral-600 shadow-sm dark:from-indigo-500 dark:to-violet-500" />
+          <BrandMark />
           <span className="min-w-0">
             <strong className="block truncate text-sm font-semibold tracking-tight">
               Bridge-Agents
