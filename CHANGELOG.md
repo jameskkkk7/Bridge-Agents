@@ -54,9 +54,9 @@ conversations, with a deterministic offline demo.
 - **Component system:** migrated the browser demo to Tailwind CSS 4 + shadcn/ui
   on Radix primitives (Button, Card, Input, Textarea, Label, Badge, Tabs) with
   lucide icons, replacing the hand-written stylesheet.
-- **Visual flow editor:** React Flow canvas for the Studio flow: node palette,
-  drag/connect with condition handles, per-node inspector, auto layout, local
-  validation, saved positions, JSON fallback and lazy loading.
+- **Visual flow editor:** React Flow canvas for the Studio flow: top-down graph
+  layout, node palette, drag/connect with condition handles, per-node inspector,
+  auto layout, local validation, saved positions, JSON fallback and lazy loading.
 - **Library:** the core runtime is also packaged as a standalone
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,

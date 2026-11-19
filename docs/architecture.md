@@ -143,7 +143,9 @@ The Flow tab is a React Flow canvas over the same JSON graph the runtime execute
   the node config, which the runtime ignores;
 * saving validates locally (one start/end, system prompt, condition rules,
   reachable end) and then the backend recompiles before activating;
-* auto layout computes columns from the graph; `JSON` switches to the raw editor
+* auto layout recomputes a top-down flow: each graph level is a horizontal row,
+  sibling branches spread sideways and never wrap into extra columns; `JSON`
+  switches to the raw editor
   for advanced changes. React Flow is lazy-loaded, so the customer and support
   bundles do not pay for it.
 
@@ -361,7 +363,7 @@ The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionari
 `LanguageProvider` persists the choice in `localStorage`, detects the browser
 language on first visit and localizes known system messages (takeover/release).
 
-Front-end budget: 36 files (excluding the lockfile) and 4,183 lines including
+Front-end budget: 37 files (excluding the lockfile) and 4,229 lines including
 deployment assets; the hard limit is 400 lines per file, which every component
 and page respects. The flow editor is the recent addition.
 
