@@ -4,7 +4,7 @@
 PYTHON ?= uv run python
 NPM ?= npm
 
-.PHONY: help install demo serve init-db web dev-api dev-web build-web test lint fmt check package docker doctor
+.PHONY: help install demo serve init-db web dev-api dev-web build-web web-release test lint fmt check package release docker doctor
 
 help:  ## Show the available targets
 	@echo "Bridge-Agents targets:"
@@ -14,11 +14,13 @@ help:  ## Show the available targets
 	@echo "  make dev-api    API with auto-reload on :8000"
 	@echo "  make dev-web    Vite dev server on :5173 (proxies the API)"
 	@echo "  make build-web  Build the production web UI into web/dist"
+	@echo "  make web-release Build the versioned web UI release artifact"
 	@echo "  make test       Run the offline test suite"
 	@echo "  make lint       Ruff check + format check"
 	@echo "  make fmt        Format and auto-fix"
 	@echo "  make check      lint + tests + web build"
-	@echo "  make package    Build the app and library wheels (uv build)"
+	@echo "  make package    Build the server and core-library wheels (uv build)"
+	@echo "  make release    Build wheels + the web UI release artifact"
 	@echo "  make docker     docker compose up --build"
 	@echo "  make doctor     Check local demo prerequisites"
 
@@ -59,6 +61,11 @@ check: lint test build-web  ## Full local quality gate
 
 package:  ## Build wheels
 	uv build
+
+web-release: build-web  ## Package the built UI for releases
+	uv run python scripts/package_web.py
+
+release: package web-release  ## Build all release artifacts
 
 docker:  ## Full stack in Docker
 	docker compose up --build

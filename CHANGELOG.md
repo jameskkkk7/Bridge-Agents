@@ -87,11 +87,17 @@ conversations, with a deterministic offline demo.
   `doctor`, `version`), a single-port mode that serves the built web UI from the
   API, `make demo` for a one-command offline demo, and a Makefile with the
   common install/test/lint/build/package tasks.
+- **Deployment:** the server distribution is now `bridge-agents-server` (pinned
+  core version, `[postgres]`/`[mysql]` extras) and the GUI ships as a separate
+  static release artifact. Add TOML configuration with standard precedence,
+  `init`/`config check`/`serve --config` commands, `/api/v1/meta` version
+  handshake, systemd/nginx templates and an embeddable `AgentRuntime` façade
+  with testing fakes.
 - **Support prompt:** the shipped agent prompt is a complete customer-service
   playbook covering identity, grounded answers with citations, tone,
   policy limits, tool use, safety/privacy, human handover, formatting and
   uncertainty handling.
-- **Quality:** 302 offline tests, 91% combined line coverage of `app/core` and
+- **Quality:** 312 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
 

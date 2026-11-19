@@ -106,6 +106,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if assets.is_dir():
             application.mount("/assets", StaticFiles(directory=assets), name="web-assets")
 
+    @application.get("/api/v1/meta", tags=["ops"])
+    async def api_meta() -> dict[str, object]:
+        return {
+            "name": config.app_name,
+            "version": config.app_version,
+            "api_version": "v1",
+            "min_web_version": config.app_version,
+            "frontend_served": web_dist is not None,
+            "capabilities": [
+                "chat",
+                "streaming",
+                "review_gate",
+                "moderation",
+                "retrieval",
+                "takeover",
+                "images",
+            ],
+        }
+
     @application.get("/", tags=["ops"], response_model=None)
     async def root() -> FileResponse | dict[str, str | None]:
         if web_dist is not None:

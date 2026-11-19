@@ -284,6 +284,7 @@ credentials.
 | Variable | Default | Purpose |
 |---|---|---|
 | `APP_ENV` | `development` | `production` disables the demo login |
+| `BRIDGE_CONFIG` | `bridge-agents.toml` | Optional TOML file; precedence is CLI > env > .env > TOML > defaults |
 | `DEBUG` | `false` | Enables `/docs` and `/redoc` |
 | `ALLOWED_HOSTS` | `*` in code, `localhost,127.0.0.1` in the example | Trusted host middleware |
 | `CORS_ORIGINS` | empty | Comma-separated browser origins |
@@ -455,7 +456,7 @@ uv run ruff format --check .                                                # cl
 uv run python scripts/check_sanitized.py                                    # exit 0
 ```
 
-Current snapshot: **302 tests** collected, **91%** combined line coverage of
+Current snapshot: **312 tests** collected, **91%** combined line coverage of
 `app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
 clean, and the repository sanitisation gate passes. The tree today is 4,188
 lines of application Python, a 2,765-line library, 4,317 lines of tests and a
@@ -487,12 +488,14 @@ app/
   services/channels/  channel abstraction and the Lark adapter
   ws/           websocket gateway (subscriptions, streaming, rate limiting)
   cli.py        `bridge-agents` CLI: demo, serve, init-db, doctor, version
+  cli.py        `bridge-agents` CLI: init, config check, serve, init-db, demo, doctor
   main.py       application factory and lifespan wiring
 packages/bridge_agents/  standalone core library (agent runtime, auth, guard, rate limit)
-tests/          302 offline tests (fake model, fake compiled graph, mock Lark transport)
+tests/          312 offline tests (fake model, fake compiled graph, mock Lark transport)
 docs/kb/        fictional product documentation used by the search tool
 docs/assets/    documentation artwork
-scripts/        init_db.py, demo.py, check_sanitized.py, allowlist
+scripts/        init_db.py, demo.py, package_web.py, check_sanitized.py, allowlist
+deploy/         nginx.conf, bridge-agents.service, deployment guide
 Dockerfile      api image (non-root, healthcheck)
 docker-compose.yml  api + mock-llm + web (+ optional mysql profile)
 mock/           deterministic OpenAI-compatible mock model

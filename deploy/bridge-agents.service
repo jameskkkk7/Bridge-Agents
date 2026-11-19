@@ -1,0 +1,30 @@
+[Unit]
+Description=Bridge-Agents server
+Documentation=https://github.com/jameskkkk7/Bridge-Agents
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bridge-agents
+Group=bridge-agents
+WorkingDirectory=/opt/bridge-agents
+# Secrets and production overrides live in this file (mode 0640, root:bridge-agents).
+EnvironmentFile=/etc/bridge-agents/bridge-agents.env
+ExecStart=/opt/bridge-agents/.venv/bin/bridge-agents serve \
+    --config /etc/bridge-agents/bridge-agents.toml \
+    --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+
+# Hardening (adjust ReadWritePaths to your database/upload directories).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bridge-agents
+ReadWritePaths=/var/log/bridge-agents
+
+[Install]
+WantedBy=multi-user.target
