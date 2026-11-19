@@ -85,8 +85,9 @@ Run `docker compose up --build`, then open one of the two entry points:
 
 Studio → Knowledge shows the retrieval index, a search preview and document
 upload; Studio → Settings changes the model and the support prompt without a
-redeploy. The whole UI ships in English and 简体中文 — use the EN / 中文 switch in
-the top bar; the choice is remembered.
+redeploy. The header switches between light and dark themes. The whole UI ships
+in English and 简体中文 — use the EN / 中文 switch in the top bar; the choice is
+remembered.
 
 ## Try it today
 
@@ -131,7 +132,9 @@ uv run python scripts/init_db.py
 uv run uvicorn app.main:app --reload
 ```
 
-Browser development: the UI lives in `web/` (React + TypeScript). Run
+Browser development: the UI is React 19 + TypeScript + Vite with hand-written
+CSS (no UI framework), self-hosted variable fonts (Kumbh Sans, Noto Sans SC,
+Roboto Mono) and a light/dark theme token system. It lives in `web/`. Run
 `cd web && npm install && npm run dev` and it proxies `/api` and `/ws` to the
 local API. Engineering details — API, configuration, quality gates — live in
 [docs/architecture.md](docs/architecture.md).
@@ -146,6 +149,7 @@ local API. Engineering details — API, configuration, quality gates — live in
 | Answers grounded in your documentation | ✅ hybrid retrieval with citations and an editable knowledge base | often prompt-only or a separate add-on |
 | Change the model or support prompt without a deploy | ✅ Studio settings, applied to the next message | usually an environment change and restart |
 | Works on a phone | ✅ responsive customer chat, support desk and Studio | admin consoles are often desktop-first |
+| Light and dark themes | ✅ one token system, switch in the header, remembered | often a single fixed theme |
 | Works offline for demos and evaluation | ✅ one command with a mock model | often cloud-first |
 
 Low-code platforms are great for drag-and-drop prototyping. Bridge-Agents is for
@@ -189,6 +193,11 @@ portal: support desk at `/admin`, Studio (flow and knowledge) at
 Yes — the browser demo ships in English and 简体中文 and remembers the choice.
 The demo model answers in English because the bundled documentation is English;
 the UI chrome, notices and support flow are fully translated.
+
+**Can I switch between light and dark?**
+Yes. The theme button in the header switches the whole UI; the choice is stored
+per browser, follows `prefers-color-scheme` on first visit and applies before the
+first paint.
 
 **Does the demo work on a phone?**
 Yes. The customer chat, support desk and Studio are responsive down to 360 px wide
@@ -250,6 +259,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 - [x] Bilingual web UI (English / 简体中文) with a persisted language switch
 - [x] Studio settings: runtime model configuration with an encrypted API key, and a support-prompt editor
 - [x] Responsive UI for phones and tablets across all three views
+- [x] Light and dark themes with self-hosted variable fonts
 - [ ] Second messaging integration (Slack) and a webhook API
 - [ ] Reranking, per-tenant knowledge bases and a visual flow editor
 - [ ] Embeddable widget

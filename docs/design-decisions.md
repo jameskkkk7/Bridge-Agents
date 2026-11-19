@@ -272,3 +272,19 @@ points, the i18n dictionaries and the API client in one place.
 some interactions (a sticky composer above the soft keyboard) are approximations
 of what a native app would do. A production mobile client would still want its
 own build.
+
+## 21. One UI with light and dark themes, and self-hosted fonts
+
+**Decision:** both themes come from one set of CSS variables on
+`[data-theme]`; React only switches the attribute. Fonts are bundled through
+Fontsource (Kumbh Sans, Noto Sans SC, Roboto Mono) instead of loaded from a CDN.
+
+**Why:** one component tree means both themes stay feature-complete and the
+mobile/bilingual work is not duplicated. Self-hosting removes a third-party
+runtime dependency, keeps the demo offline and gives Chinese and Latin text a
+consistent typeface.
+
+**Cost:** the Noto Sans SC package adds roughly 4.5 MB of Unicode-range font
+files to the image (browsers download only the subsets they need) and the theme
+needs care around images/code blocks. A CDN would cut build size but add an
+external request and a privacy trade-off.

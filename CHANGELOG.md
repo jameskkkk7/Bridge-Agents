@@ -47,6 +47,10 @@ conversations, with a deterministic offline demo.
 - **Responsive UI:** phone and tablet layouts for the customer chat, support
   desk and Studio (breakpoints at 900/640/380 px, safe-area insets, 16 px form
   text, full-width composers and no horizontal scrolling).
+- **Refreshed visual design:** light and dark themes from one token set, pill
+  navigation and controls, restrained surfaces and self-hosted Kumbh Sans,
+  Noto Sans SC and Roboto Mono fonts; the theme choice is remembered and applies
+  before first paint.
 - **Library:** the core runtime is also packaged as a standalone
   `bridge-agents` distribution (`packages/bridge_agents`, import
   `bridge_agents`): LangGraph pipeline and graph validation, token verifiers,
