@@ -178,3 +178,20 @@ async def test_guarantee_scenario_wins_over_knowledge_context(client) -> None:
     ]
     response = await _chat(client, messages)
     assert response.json()["choices"][0]["message"]["content"] == "".join(GUARANTEE_SEGMENTS)
+
+
+async def test_moderation_endpoint_is_deterministic(client) -> None:
+    flagged = await client.post(
+        "/v1/moderations",
+        json={"model": "omni-moderation-latest", "input": "[[moderation]] threat"},
+    )
+    assert flagged.status_code == 200
+    result = flagged.json()["results"][0]
+    assert result["flagged"] is True
+    assert result["categories"]["violence"] is True
+
+    safe = await client.post(
+        "/v1/moderations",
+        json={"model": "omni-moderation-latest", "input": "friendly hello"},
+    )
+    assert safe.json()["results"][0]["flagged"] is False

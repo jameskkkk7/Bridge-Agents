@@ -20,6 +20,9 @@ conversations, with a deterministic offline demo.
   knowledge panel.
 - **Review gate:** buffered streaming, rejected drafts never reach the client,
   reviewer output is not leaked, and retries are bounded.
+- **Provider moderation:** the sanitize node keeps its local banned-word hard gate
+  and can additionally call an OpenAI-compatible `/v1/moderations` endpoint for
+  the latest assistant draft, with fallback text and fail-open/closed policy.
 - **Auth:** HS256, RS256-PEM and JWKS verifiers behind one protocol; three roles
   (customer, support, admin); dev login only outside production.
 - **Conversations:** session, message and image APIs; WebSocket streaming with a

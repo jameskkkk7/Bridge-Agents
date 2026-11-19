@@ -311,3 +311,20 @@ manipulation, while debugging and bulk edits still have a precise text view.
 the runtime schema), client validation duplicates some backend rules, and React
 Flow adds ~275 KB lazy-loaded JS. The editor is code-split so other pages stay
 small.
+
+## 23. Provider moderation complements the local hard gate
+
+**Decision:** the sanitize node always applies the local banned-word list. An
+optional provider check calls an OpenAI-compatible `/v1/moderations` endpoint
+for the latest assistant draft only, replacing a flagged draft with a
+configurable fallback. Provider failures fail open by default.
+
+**Why:** the local list is deterministic, free and cannot be silently disabled
+by an outage. Provider classifiers catch categories that a finite word list
+cannot enumerate. Checking only the latest draft avoids re-billing the whole
+conversation on every turn.
+
+**Cost:** one extra network call/latency for the sanitize node, provider false
+positives and an external dependency; the operator can choose fail-closed and
+pin the provider URL/model per node. API keys stay in the environment (or the
+runtime model key), never in the saved graph.

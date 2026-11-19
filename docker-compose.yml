@@ -21,6 +21,10 @@ services:
       RAG_EMBEDDER: ${RAG_EMBEDDER:-hash}
       RAG_TOP_K: "4"
       RAG_MIN_SCORE: "0.12"
+      MODERATION_BASE_URL: ${MODERATION_BASE_URL:-}
+      MODERATION_API_KEY: ${MODERATION_API_KEY:-}
+      MODERATION_MODEL: ${MODERATION_MODEL:-omni-moderation-latest}
+      MODERATION_TIMEOUT: ${MODERATION_TIMEOUT:-5}
       ALLOWED_HOSTS: "*"
       LLM_MODE: mock
       OPENAI_BASE_URL: http://mock-llm:8001/v1

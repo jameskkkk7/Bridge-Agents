@@ -341,8 +341,15 @@ export function nodeSummary(kind: GraphNodeKind, config: Record<string, unknown>
     return tools.length ? tools.join(", ") : "all tools";
   }
   if (kind === "sanitize") {
-    const words = config.banned_words;
-    return typeof words === "string" ? words : Array.isArray(words) ? words.join(", ") : "";
+    const words =
+      typeof config.banned_words === "string"
+        ? config.banned_words
+        : Array.isArray(config.banned_words)
+          ? (config.banned_words as string[]).join(", ")
+          : "";
+    return [words, config.provider_enabled ? "provider moderation" : ""]
+      .filter(Boolean)
+      .join(" · ");
   }
   if (kind === "review") {
     return config.on_block === "pass_through" ? "pass through" : "fallback";

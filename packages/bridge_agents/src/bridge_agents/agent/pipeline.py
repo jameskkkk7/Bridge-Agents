@@ -43,6 +43,11 @@ from bridge_agents.agent import AgentPipeline
 from bridge_agents.agent.prompts import DEFAULT_FALLBACK_MESSAGE, DEFAULT_REVIEW_PROMPT
 from bridge_agents.agent.tools import get_tools
 from bridge_agents.config import Settings, get_settings
+from bridge_agents.moderation import (
+    ModerationError,
+    Moderator,
+    OpenAICompatibleModerator,
+)
 from bridge_agents.rag.format import format_context_blocks
 from bridge_agents.rag.knowledge import KnowledgeBase, get_knowledge
 
@@ -166,8 +171,10 @@ class LangGraphPipeline(AgentPipeline):
         tools: list | None = None,
         knowledge: KnowledgeBase | None = None,
         settings: Settings | None = None,
+        moderator: Moderator | None = None,
     ) -> None:
         self._settings = settings or get_settings()
+        self._moderator = moderator
         if llm is None:
             from bridge_agents.agent.factory import build_chat_model
 
@@ -360,7 +367,12 @@ class LangGraphPipeline(AgentPipeline):
         return custom_node
 
     def _make_sanitize_node(self, config: dict):
-        """Create a node that masks configured words in message content."""
+        """Create a node that masks banned words and optionally calls a provider.
+
+        The local list is the hard gate and applies to every string message.
+        The provider check is best-effort and applies to the latest assistant
+        draft only, so conversation history is not re-classified on every turn.
+        """
         raw_words = config.get("banned_words")
         if isinstance(raw_words, str):
             words = [word.strip() for word in raw_words.split(",") if word.strip()]
@@ -371,15 +383,71 @@ class LangGraphPipeline(AgentPipeline):
         mask = re.compile("|".join(re.escape(word) for word in words)) if words else None
         replacement = config.get("replacement") or "***"
 
+        provider_enabled = bool(config.get("provider_enabled"))
+        provider_fallback = str(
+            config.get("provider_fallback")
+            or "This reply was blocked by the provider moderation service."
+        )
+        provider_fail_open = config.get("provider_fail_open", True) is not False
+        moderator = self._moderator
+        if provider_enabled and moderator is None:
+            base_url = str(
+                config.get("provider_base_url")
+                or self._settings.moderation_base_url
+                or self._settings.openai_base_url
+            ).strip()
+            if base_url:
+                moderator = OpenAICompatibleModerator(
+                    base_url=base_url,
+                    api_key=str(self._settings.moderation_api_key or self._settings.openai_api_key),
+                    model=str(config.get("provider_model") or self._settings.moderation_model),
+                    timeout=_float_setting(
+                        config.get("provider_timeout"),
+                        float(self._settings.moderation_timeout),
+                    ),
+                )
+            else:
+                LOGGER.warning(
+                    "sanitize node requested provider moderation but no base URL is configured"
+                )
+
         async def sanitize_node(state: _GraphState) -> dict:
-            if mask is None:
+            if mask is None and not (provider_enabled and moderator is not None):
                 return {}
+            messages = state.get("messages", [])
+            latest_ai_id: str | None = None
+            for message in messages:
+                if isinstance(message, AIMessage) and message.id:
+                    latest_ai_id = message.id
             repaired: list = []
-            for message in state.get("messages", []):
+            for message in messages:
                 content = getattr(message, "content", None)
                 if not isinstance(content, str):
                     continue
-                cleaned = mask.sub(replacement, content)
+                cleaned = mask.sub(replacement, content) if mask is not None else content
+                if (
+                    provider_enabled
+                    and moderator is not None
+                    and isinstance(message, AIMessage)
+                    and message.id == latest_ai_id
+                    and cleaned.strip()
+                ):
+                    try:
+                        verdict = await moderator.check(cleaned)
+                    except ModerationError:
+                        LOGGER.warning(
+                            "provider moderation failed; %s",
+                            "failing open" if provider_fail_open else "using fallback",
+                        )
+                        if not provider_fail_open:
+                            cleaned = provider_fallback
+                    else:
+                        if verdict.flagged:
+                            LOGGER.warning(
+                                "provider moderation flagged the latest reply: %s",
+                                verdict.reason or "flagged",
+                            )
+                            cleaned = provider_fallback
                 if cleaned != content:
                     # Keep the message id so the reducer replaces the original.
                     repaired.append(message.model_copy(update={"content": cleaned}))

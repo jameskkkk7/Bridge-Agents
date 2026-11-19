@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     openai_model: str = "mock-model"
     openai_thinking_enabled: bool = False
 
+    # Optional provider moderation for the sanitize node
+    moderation_base_url: str = ""
+    moderation_api_key: str = ""
+    moderation_model: str = "omni-moderation-latest"
+    moderation_timeout: int = 5
+
     # LLM request behaviour
     openai_temperature: float = 1.0
     openai_timeout: int = 60

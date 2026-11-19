@@ -244,6 +244,27 @@ async def embeddings(payload: dict[str, Any]) -> JSONResponse:
     )
 
 
+@app.post("/v1/moderations")
+async def moderations(payload: dict[str, Any]) -> JSONResponse:
+    """Deterministic moderation scenario used by the sanitize-node tests."""
+    raw = payload.get("input")
+    texts = raw if isinstance(raw, list) else [raw or ""]
+    flagged = any("[[moderation]]" in str(text).lower() for text in texts)
+    return JSONResponse(
+        {
+            "id": "modr-mock",
+            "model": payload.get("model") or "omni-moderation-latest",
+            "results": [
+                {
+                    "flagged": flagged,
+                    "categories": ({"violence": True} if flagged else {"violence": False}),
+                    "category_scores": {"violence": 1.0 if flagged else 0.0},
+                }
+            ],
+        }
+    )
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(payload: dict[str, Any]):
     """Answer one completion request using the deterministic scenarios."""
