@@ -127,6 +127,25 @@ A human reply is a normal agent message, not a special path:
 Takeover remains the recommended order: it cancels the in-flight AI reply, so a
 human answer cannot race a late model answer.
 
+## Flow editor
+
+The Flow tab is a React Flow canvas over the same JSON graph the runtime executes:
+
+* the palette adds `start`, `end`, `system`, `retrieval`, `agent`, `tools`,
+  `custom`, `sanitize` and `review` nodes; start/end use the reserved
+  `__start__`/`__end__` ids;
+* `agent` exposes `respond` and `tool_call` source handles, `review` exposes
+  `pass` and `block`; other nodes have a single source handle. A connection
+  becomes `condition` + `source_handle` in the saved JSON;
+* selecting a node opens its inspector (prompts, retrieval `top_k`/score, tool
+  allow-list, sanitize words, review policy); positions are saved as `x`/`y` in
+  the node config, which the runtime ignores;
+* saving validates locally (one start/end, system prompt, condition rules,
+  reachable end) and then the backend recompiles before activating;
+* auto layout computes columns from the graph; `JSON` switches to the raw editor
+  for advanced changes. React Flow is lazy-loaded, so the customer and support
+  bundles do not pay for it.
+
 ## Runtime settings
 
 Studio → Settings exposes the two knobs an operator usually needs:
@@ -302,14 +321,15 @@ python -m venv /tmp/ba && /tmp/ba/bin/pip install dist/bridge_agents-0.1.0-py3-n
 
 `web/` is a small React 19 + TypeScript single-page app built with Vite 6,
 **Tailwind CSS 4 and shadcn/ui components on Radix primitives** (Button, Card,
-Input, Textarea, Label, Badge, Tabs); icons come from lucide-react. It has two
-separate entry points sharing one bundle:
+Input, Textarea, Label, Badge, Tabs), **React Flow (`@xyflow/react`) for the flow
+editor**; icons come from lucide-react. It has two separate entry points sharing
+one bundle:
 
 | Path | Entry | Purpose |
 |---|---|---|
 | `/` | Customer | Chat only: streaming replies, review-gate fallback, image upload, reconnect indicator; the shell has no staff navigation |
 | `/admin` | Staff | Support desk: live transcript over a staff websocket, takeover/release, a reply box that delivers to the customer, and close |
-| `/admin/studio` | Staff | Studio: edit the flow JSON, save (compile-checked) or reset, inspect the Mermaid source, manage the knowledge base, and configure the runtime model and support prompt |
+| `/admin/studio` | Staff | Studio: edit the conversation flow on a drag-and-drop canvas (or JSON), save (compile-checked) or reset, manage the knowledge base, and configure the runtime model and support prompt |
 | `/graph` | — | Legacy URL, redirects to `/admin/studio` |
 | any | — | EN / 中文 switch in the top bar; the choice is stored per browser |
 
@@ -340,9 +360,9 @@ The UI is bilingual: `web/src/i18n.tsx` holds the English and Chinese dictionari
 `LanguageProvider` persists the choice in `localStorage`, detects the browser
 language on first visit and localizes known system messages (takeover/release).
 
-Front-end budget: 29 files (excluding the lockfile) and 2,886 lines including
+Front-end budget: 36 files (excluding the lockfile) and 4,183 lines including
 deployment assets; the hard limit is 400 lines per file, which every component
-and page respects. The Tailwind/shadcn migration is the recent addition.
+and page respects. The flow editor is the recent addition.
 
 ## One-command demo stack
 

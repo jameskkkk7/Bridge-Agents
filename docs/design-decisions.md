@@ -295,3 +295,19 @@ consistent typeface.
 files to the image (browsers download only the subsets they need) and the theme
 needs care around images/code blocks. A CDN would cut build size but add an
 external request and a privacy trade-off.
+
+## 22. The visual flow editor is a view over the JSON graph
+
+**Decision:** the Studio canvas uses React Flow to edit exactly the JSON graph
+the runtime consumes. Node positions and display metadata live in the node
+`config` object (ignored by the runtime), edges keep `condition` /
+`source_handle`, and the JSON editor remains available as a fallback.
+
+**Why:** one representation means a graph saved by dragging and a graph saved as
+JSON are validated, compiled and executed the same way. Operators get direct
+manipulation, while debugging and bulk edits still have a precise text view.
+
+**Cost:** layout metadata leaks into the graph config (harmless but not part of
+the runtime schema), client validation duplicates some backend rules, and React
+Flow adds ~275 KB lazy-loaded JS. The editor is code-split so other pages stay
+small.

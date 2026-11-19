@@ -33,7 +33,7 @@ reply before the customer sees it?**
 |---|---|
 | A second model reviews every draft against your policy. Approved text streams to the customer; a rejected draft is replaced by your fallback and never shown. | A teammate can take over a conversation, and the AI's pending answer is cancelled — then reply from the support desk or the bound Lark chat. The customer gets a person, not a duplicate reply. |
 | 📚 **Answers with sources** | 🧩 **Change the flow, not the code** |
-| Every reply is grounded in your documentation. The retriever finds the relevant passages, the assistant cites them as [1], [2], and the review gate still checks the wording. | The conversation flow is saved configuration. Operations can rewire it, and a flow that cannot run is refused before it goes live. *(drag-and-drop editor in progress; the JSON editor is live)* |
+| Every reply is grounded in your documentation. The retriever finds the relevant passages, the assistant cites them as [1], [2], and the review gate still checks the wording. | The conversation flow is saved configuration. Operations rewire it on a drag-and-drop canvas, and a flow that cannot run is refused before it goes live. A JSON editor remains for advanced edits. |
 
 Plus the boring-but-important part: **your data stays yours.** Self-hosted,
 SQLite by default, no external calls in demo mode, and roles for customers,
@@ -134,8 +134,9 @@ uv run uvicorn app.main:app --reload
 
 Browser development: the UI is React 19 + TypeScript + Vite 6, **Tailwind CSS 4
 with shadcn/ui components on Radix primitives** (Button, Card, Input, Textarea,
-Label, Badge, Tabs), lucide icons, self-hosted variable fonts (Kumbh Sans,
-Noto Sans SC, Roboto Mono) and a light/dark token system. It lives in `web/`. Run
+Label, Badge, Tabs), **@xyflow/react (React Flow) for the flow editor**, lucide
+icons, self-hosted variable fonts (Kumbh Sans, Noto Sans SC, Roboto Mono) and a
+light/dark token system. It lives in `web/`. Run
 `cd web && npm install && npm run dev` and it proxies `/api` and `/ws` to the
 local API. Engineering details — API, configuration, quality gates — live in
 [docs/architecture.md](docs/architecture.md).
@@ -165,14 +166,15 @@ is not an acceptable answer.
 | Now | Next | Later |
 |---|---|---|
 | Secure sign-in with three roles (customer, support, admin) | CI, design notes and release packaging | Slack adapter and webhook API |
-| Review-gated runtime: buffering, retries, fallbacks, safe defaults | Drag-and-drop flow editor | Database migrations and deployment guides |
+| Review-gated runtime: buffering, retries, fallbacks, safe defaults | — | Database migrations and deployment guides |
 | Real-time conversations: REST + WebSocket streaming | Embeddable widget | Load-test scripts and multi-tenant storage |
 | Two entry points: customer chat at `/`, staff portal at `/admin` (support desk + Studio) | — | — |
+| Graphical flow editor: drag-and-drop canvas, node inspector, condition handles, auto layout and JSON fallback | — | — |
 | Bilingual UI: English and 简体中文, switchable and remembered per browser | — | — |
 | Grounded answers: hybrid retrieval, citations and an editable knowledge base (upload, reindex, search preview) | Reranking and per-tenant knowledge bases | — |
 | Studio settings: runtime model configuration (provider, model, sampling, encrypted API key) and a support-prompt editor | Per-tenant model routing | Provider-specific settings beyond OpenAI-compatible APIs |
 | Responsive UI: phone and tablet layouts for the customer chat, support desk and Studio | Native apps | Desktop-oriented admin consoles |
-| Human replies: live support transcript with takeover and a reply box in the browser | Mirroring customer, assistant and support messages to Slack |
+| Human replies: live support transcript with takeover and a reply box in the browser | Mirroring customer, assistant and support messages to Slack | — |
 | Lark channel: signed webhook, encrypted events, support commands and two-way human replies (disabled by default) | — | — |
 | One-command Docker stack with a deterministic mock model (offline, no API key) | — | — |
 
@@ -263,8 +265,9 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 - [x] Responsive UI for phones and tablets across all three views
 - [x] Light and dark themes with self-hosted variable fonts
 - [x] Tailwind CSS 4 + shadcn/ui (Radix) component migration
+- [x] Graphical flow editor (React Flow) with node inspector, auto layout and JSON fallback
 - [ ] Second messaging integration (Slack) and a webhook API
-- [ ] Reranking, per-tenant knowledge bases and a visual flow editor
+- [ ] Reranking, per-tenant knowledge bases and an embeddable widget
 - [ ] Embeddable widget
 
 ## Configuration
