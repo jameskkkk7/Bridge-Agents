@@ -158,6 +158,19 @@ function layoutPositions(nodes: GraphNodeConfig[], edges: GraphEdgeConfig[]) {
   return positions;
 }
 
+export function conditionColor(condition: string | null): string | null {
+  if (condition === "pass") return "var(--success)";
+  if (condition === "block") return "var(--destructive)";
+  return null;
+}
+
+function conditionMarker(condition: string | null) {
+  const color = conditionColor(condition);
+  return color
+    ? { type: MarkerType.ArrowClosed as const, color }
+    : { type: MarkerType.ArrowClosed as const };
+}
+
 export function configToFlow(config: GraphConfigDto): {
   nodes: GraphFlowNode[];
   edges: GraphFlowEdge[];
@@ -183,7 +196,16 @@ export function configToFlow(config: GraphConfigDto): {
       targetHandle: edge.target_handle ?? undefined,
       label: condition ?? undefined,
       data: { condition },
-      markerEnd: { type: MarkerType.ArrowClosed },
+      markerEnd: conditionMarker(condition),
+      style: conditionColor(condition)
+        ? { stroke: conditionColor(condition) as string, strokeWidth: 2 }
+        : undefined,
+      labelStyle: conditionColor(condition)
+        ? { fill: conditionColor(condition) as string, fontWeight: 600 }
+        : undefined,
+      labelBgStyle: conditionColor(condition)
+        ? { fill: "var(--card)", opacity: 0.9 }
+        : undefined,
       type: "smoothstep",
     };
   });
@@ -229,7 +251,16 @@ export function connectEdge(
     sourceHandle: sourceHandle ?? undefined,
     label: condition ?? undefined,
     data: { condition },
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: conditionMarker(condition),
+    style: conditionColor(condition)
+      ? { stroke: conditionColor(condition) as string, strokeWidth: 2 }
+      : undefined,
+    labelStyle: conditionColor(condition)
+      ? { fill: conditionColor(condition) as string, fontWeight: 600 }
+      : undefined,
+    labelBgStyle: conditionColor(condition)
+      ? { fill: "var(--card)", opacity: 0.9 }
+      : undefined,
     type: "smoothstep",
   };
 }

@@ -39,7 +39,7 @@ const TONES: Record<GraphNodeKind, string> = {
   review: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
 };
 
-const handleClass = "!size-2.5 !border-2 !border-background !bg-primary";
+const handleClass = "!size-2.5 !border-2 !border-background bg-primary";
 
 export default function GraphNodeView({ data, selected }: NodeProps<GraphFlowNode>) {
   const { t } = useLanguage();
@@ -82,16 +82,16 @@ export default function GraphNodeView({ data, selected }: NodeProps<GraphFlowNod
             id="respond"
             type="source"
             position={Position.Right}
-            style={{ top: "35%" }}
-            className={`${handleClass} !bg-emerald-500`}
+            style={{ top: "35%", background: "var(--success)" }}
+            className={handleClass}
             title={t("graph.condition.respond")}
           />
           <Handle
             id="tool_call"
             type="source"
             position={Position.Right}
-            style={{ top: "72%" }}
-            className={`${handleClass} !bg-amber-500`}
+            style={{ top: "72%", background: "var(--warning)" }}
+            className={handleClass}
             title={t("graph.condition.tool_call")}
           />
         </>
@@ -103,16 +103,16 @@ export default function GraphNodeView({ data, selected }: NodeProps<GraphFlowNod
             id="pass"
             type="source"
             position={Position.Right}
-            style={{ top: "35%" }}
-            className={`${handleClass} !bg-emerald-500`}
+            style={{ top: "35%", background: "var(--success)" }}
+            className={handleClass}
             title={t("graph.condition.pass")}
           />
           <Handle
             id="block"
             type="source"
             position={Position.Right}
-            style={{ top: "72%" }}
-            className={`${handleClass} !bg-destructive`}
+            style={{ top: "72%", background: "var(--destructive)" }}
+            className={handleClass}
             title={t("graph.condition.block")}
           />
         </>
@@ -124,3 +124,4 @@ export default function GraphNodeView({ data, selected }: NodeProps<GraphFlowNod
     </div>
   );
 }
+
