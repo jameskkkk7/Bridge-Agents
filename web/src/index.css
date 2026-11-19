@@ -181,3 +181,64 @@
 .dark .brand-mark {
   background-image: linear-gradient(135deg, #6366f1, #8b5cf6);
 }
+
+/* ------------------------------------------------------------- react flow */
+.react-flow {
+  --xy-background-color: var(--card);
+  --xy-edge-stroke: var(--muted-foreground);
+  --xy-edge-stroke-selected: var(--primary);
+  --xy-connectionline-stroke: var(--primary);
+  --xy-handle-background-color: var(--primary);
+  --xy-handle-border-color: var(--background);
+  --xy-minimap-background-color: var(--card);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+  --xy-attribution-background-color: transparent;
+}
+
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.react-flow__controls-button {
+  border-bottom-color: var(--border);
+}
+
+.react-flow__controls-button:hover {
+  background: var(--accent);
+}
+
+.react-flow__minimap {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.react-flow__attribution {
+  color: var(--muted-foreground);
+  font-size: 9px;
+}
+
+.react-flow__edge-text {
+  fill: var(--muted-foreground);
+  font-size: 10px;
+}
+
+.react-flow__edge-textbg {
+  fill: var(--card);
+}
+
+.react-flow__handle {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid var(--background);
+}
+
+.react-flow__handle:hover {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent);
+}

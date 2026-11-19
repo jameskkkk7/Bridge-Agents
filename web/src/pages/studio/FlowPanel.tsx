@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -8,8 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { deleteJson, errorText, getJson, putJson } from "@/api";
+const GraphEditor = lazy(() => import("@/components/graph/GraphEditor"));
 import { useLanguage } from "@/i18n";
 
 interface GraphConfig {
@@ -22,7 +24,9 @@ interface Diagram {
   diagram: string | null;
 }
 
-export default function FlowPanel({
+type Mode = "graph" | "json";
+
+function JsonEditor({
   token,
   onError,
 }: {
@@ -65,6 +69,7 @@ export default function FlowPanel({
   };
 
   const reset = async () => {
+    if (!window.confirm(t("flow.resetConfirm"))) return;
     onError("");
     setStatus("");
     try {
@@ -105,7 +110,7 @@ export default function FlowPanel({
               spellCheck={false}
               value={configText}
               onChange={(event) => setConfigText(event.target.value)}
-              className="min-h-[54vh] resize-y rounded-xl [field-sizing:fixed] bg-muted/40 font-mono text-xs leading-relaxed"
+              className="min-h-[50vh] resize-y rounded-xl [field-sizing:fixed] bg-muted/40 font-mono text-xs leading-relaxed"
             />
           </CardContent>
         </Card>
@@ -115,12 +120,49 @@ export default function FlowPanel({
             <CardDescription>{t("flow.previewHelp")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <pre className="scrollbar-thin min-h-[54vh] overflow-auto rounded-xl border border-border bg-muted/40 p-4 font-mono text-xs leading-relaxed text-foreground/90">
+            <pre className="scrollbar-thin min-h-[50vh] overflow-auto rounded-xl border border-border bg-muted/40 p-4 font-mono text-xs leading-relaxed text-foreground/90">
               {mermaid || t("common.loading")}
             </pre>
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+export default function FlowPanel({
+  token,
+  onError,
+}: {
+  token: string;
+  onError: (message: string) => void;
+}) {
+  const { t } = useLanguage();
+  const [mode, setMode] = useState<Mode>("graph");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-end">
+        <Tabs value={mode} onValueChange={(value) => setMode(value as Mode)}>
+          <TabsList>
+            <TabsTrigger value="graph">{t("flow.modeGraph")}</TabsTrigger>
+            <TabsTrigger value="json">{t("flow.modeJson")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      {mode === "graph" ? (
+        <Suspense
+          fallback={
+            <div className="flex min-h-64 items-center justify-center rounded-xl border border-border bg-card text-sm text-muted-foreground">
+              {t("common.loading")}
+            </div>
+          }
+        >
+          <GraphEditor token={token} />
+        </Suspense>
+      ) : (
+        <JsonEditor token={token} onError={onError} />
+      )}
     </div>
   );
 }
