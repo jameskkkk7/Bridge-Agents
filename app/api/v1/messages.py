@@ -9,7 +9,7 @@ from app.api.deps import ensure_session_access, require_user
 from app.core.agent.safety import PromptSafetyError, validate_prompt
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.database import get_db
-from app.models.message import SenderType
+from app.models.message import SenderType, sender_kind
 from app.models.user import Role, User
 from app.schemas.message import MessageCreate, MessageList, MessageResponse
 from app.services.message_service import MessageService
@@ -26,6 +26,7 @@ def _message_response(message) -> MessageResponse:
         session_id=message.session_id,
         sender_id=message.sender_id,
         sender_type=message.sender_type.value,
+        sender_kind=sender_kind(message),
         content=message.content,
         message_type=message.message_type.value if message.message_type else "text",
         created_at=message.created_at,

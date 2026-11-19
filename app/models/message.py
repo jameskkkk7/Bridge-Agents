@@ -21,6 +21,10 @@ class SenderType(enum.StrEnum):
     AGENT = "agent"
 
 
+# Stable sender id for AI generated messages (the assistant is not a user row).
+AI_SENDER_ID = "00000000-0000-0000-0000-000000000001"
+
+
 class MessageType(enum.StrEnum):
     """Rendering kind of a message."""
 
@@ -31,6 +35,13 @@ class MessageType(enum.StrEnum):
 
 def _enum_values(enum_class: type[enum.Enum]) -> list[str]:
     return [str(member.value) for member in enum_class]
+
+
+def sender_kind(message: Message) -> str:
+    """Classify a stored message author as ``user``, ``ai`` or ``human``."""
+    if message.sender_type is SenderType.USER:
+        return "user"
+    return "ai" if message.sender_id == AI_SENDER_ID else "human"
 
 
 class Message(BaseModel):

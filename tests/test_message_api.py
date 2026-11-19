@@ -55,6 +55,7 @@ async def test_customer_message_triggers_an_agent_reply(stub_client: AsyncClient
     )
     assert posted.status_code == 201
     assert posted.json()["sender_type"] == "user"
+    assert posted.json()["sender_kind"] == "user"
 
     await reply_engine.drain_reply_tasks()
 
@@ -83,6 +84,13 @@ async def test_staff_message_does_not_trigger_the_ai(
     )
     assert posted.status_code == 201
     assert posted.json()["sender_type"] == "agent"
+    assert posted.json()["sender_kind"] == "human"
+
+    history = await stub_client.get(
+        f"/api/v1/sessions/{session.id}/messages",
+        headers=bearer(agent_login["access_token"]),
+    )
+    assert history.json()["items"][0]["sender_kind"] == "human"
 
     await reply_engine.drain_reply_tasks()
     assert app.state.agent_pipeline.states == []

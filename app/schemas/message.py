@@ -30,6 +30,7 @@ class MessageResponse(BaseModel):
     session_id: str
     sender_id: str
     sender_type: str
+    sender_kind: str | None = None
     content: str
     message_type: str = "text"
     created_at: datetime

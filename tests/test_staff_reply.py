@@ -44,7 +44,7 @@ async def test_missing_session_returns_none(db_session) -> None:
     payload = await send_staff_message(
         db_session,
         session_id="00000000-0000-0000-0000-000000000000",
-        actor_id="00000000-0000-0000-0000-000000000001",
+        actor_id="11111111-1111-1111-1111-111111111111",
         content="hello",
     )
     assert payload is None

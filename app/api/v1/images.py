@@ -13,7 +13,7 @@ from app.api.deps import ensure_session_access, require_user
 from app.config import get_settings
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.database import get_db
-from app.models.message import MessageType
+from app.models.message import MessageType, sender_kind
 from app.models.user import User
 from app.schemas.image import ImageResponse
 from app.services.image_service import (
@@ -106,6 +106,7 @@ async def upload_image(
             "session_id": session_id,
             "sender_id": user.id,
             "sender_type": message.sender_type.value,
+            "sender_kind": sender_kind(message),
             "filename": image.filename,
             "mime_type": image.mime_type,
             "file_size": image.file_size,

@@ -7,14 +7,11 @@ from collections.abc import Awaitable, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.message import Message, MessageType, SenderType
+from app.models.message import AI_SENDER_ID, Message, MessageType, SenderType, sender_kind
 from app.services.message_service import MessageService
 from app.services.session_service import SessionService
 
 LOGGER = logging.getLogger(__name__)
-
-# Stable sender id for AI generated messages (the assistant is not a user row).
-AGENT_SENDER_ID = "00000000-0000-0000-0000-000000000001"
 
 
 def message_event(message: Message) -> dict:
@@ -25,6 +22,7 @@ def message_event(message: Message) -> dict:
         "session_id": message.session_id,
         "sender_id": message.sender_id,
         "sender_type": message.sender_type.value,
+        "sender_kind": sender_kind(message),
         "content": message.content,
         "message_type": message.message_type.value if message.message_type else "text",
         "created_at": message.created_at.isoformat() if message.created_at else None,
@@ -36,7 +34,7 @@ async def deliver_agent_reply(
     db: AsyncSession,
     session_id: str,
     content: str,
-    agent_id: str = AGENT_SENDER_ID,
+    agent_id: str = AI_SENDER_ID,
     channel_sender: Callable[[dict], Awaitable[None]] | None = None,
 ) -> dict | None:
     """Persist an agent reply, broadcast it and optionally notify a channel.

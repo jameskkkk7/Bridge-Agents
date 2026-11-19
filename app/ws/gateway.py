@@ -12,7 +12,7 @@ from app.core.agent.safety import PromptSafetyError, validate_prompt
 from app.core.exceptions import AuthError
 from app.core.rate_limit import WindowRateLimiter
 from app.models.database import SessionLocal
-from app.models.message import MessageType, SenderType
+from app.models.message import MessageType, SenderType, sender_kind
 from app.models.user import Role, User
 from app.services.image_service import (
     ALLOWED_IMAGE_TYPES,
@@ -127,6 +127,7 @@ def _message_payload(message) -> dict:
         "session_id": message.session_id,
         "sender_id": message.sender_id,
         "sender_type": message.sender_type.value,
+        "sender_kind": sender_kind(message),
         "content": message.content,
         "message_type": message.message_type.value if message.message_type else "text",
         "created_at": message.created_at.isoformat() if message.created_at else None,
@@ -253,6 +254,7 @@ async def _handle_image(websocket: WebSocket, application, user: User, data: dic
         "session_id": session_id,
         "sender_id": user.id,
         "sender_type": "user",
+        "sender_kind": "user",
         "mime_type": image.mime_type,
         "filename": image.filename,
         "file_size": image.file_size,

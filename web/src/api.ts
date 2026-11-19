@@ -35,6 +35,7 @@ export interface MessageRecord {
   session_id: string;
   sender_id: string;
   sender_type: string;
+  sender_kind?: string;
   content: string;
   message_type: string;
   created_at: string;

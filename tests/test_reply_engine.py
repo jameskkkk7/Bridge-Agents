@@ -46,6 +46,7 @@ async def test_reply_is_persisted_and_broadcast_then_stream_closed(db_session, m
 
     messages = recorder.of_type("message")
     assert messages and messages[0]["content"] == "Here is the answer."
+    assert messages[0]["sender_kind"] == "ai"
     assert recorder.of_type("message_chunk")
     assert len(recorder.of_type("stream_end")) == 1
 

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_agent
 from app.core.exceptions import NotFoundError
 from app.models.database import get_db
+from app.models.message import sender_kind
 from app.models.session import SessionStatus
 from app.models.user import User
 from app.schemas.admin import (
@@ -95,6 +96,7 @@ async def list_conversation_messages(
                 session_id=message.session_id,
                 sender_id=message.sender_id,
                 sender_type=message.sender_type.value,
+                sender_kind=sender_kind(message),
                 content=message.content,
                 message_type=message.message_type.value if message.message_type else "text",
                 created_at=message.created_at,
