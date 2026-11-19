@@ -36,8 +36,10 @@ jobs:
         run: uv run pytest -q
       - name: Coverage gate
         run: uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov-fail-under=70
-      - name: Build core library
-        run: uv build --package bridge-agents
+      - name: Build distributions
+        run: |
+          uv build --package bridge-agents
+          uv build --package bridge-agents-server
       - name: Repository sanitisation
         run: uv run python scripts/check_sanitized.py
       - name: Compose configuration

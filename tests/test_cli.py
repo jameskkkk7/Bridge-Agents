@@ -51,3 +51,39 @@ def test_parser_accepts_the_documented_commands() -> None:
     assert parser.parse_args(["demo", "--port", "9000"]).port == 9000
     assert parser.parse_args(["serve", "--reload"]).reload is True
     assert parser.parse_args(["init-db"]).command == "init-db"
+
+
+def test_init_writes_config_and_secrets_once(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["init"]) == 0
+    config = (tmp_path / "bridge-agents.toml").read_text(encoding="utf-8")
+    env_text = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert 'app_env = "development"' in config
+    assert "allow_dev_login = true" in config
+    secret = env_text.split("JWT_SECRET=", 1)[1].splitlines()[0]
+    assert len(secret) >= 32
+
+    assert cli.main(["init"]) == 1
+    assert "Refusing to overwrite" in capsys.readouterr().out
+
+
+def test_init_production_defaults(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["init", "--production"]) == 0
+    config = (tmp_path / "bridge-agents.toml").read_text(encoding="utf-8")
+    assert 'app_env = "production"' in config
+    assert "allow_dev_login = false" in config
+
+
+def test_config_check_reports_warnings_without_failing(tmp_path: Path, monkeypatch, capsys) -> None:
+    from os import environ
+
+    monkeypatch.chdir(tmp_path)
+    cli.main(["init"])
+    try:
+        assert cli.main(["config", "check", "--config", "bridge-agents.toml"]) == 0
+    finally:
+        environ.pop("BRIDGE_CONFIG", None)
+    output = capsys.readouterr().out
+    assert "Effective configuration" in output
+    assert "no built web UI" in output

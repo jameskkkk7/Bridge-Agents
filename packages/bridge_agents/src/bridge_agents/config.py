@@ -7,10 +7,17 @@ the raw environment value stays a simple string.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
 
 
 class Settings(BaseSettings):
@@ -22,6 +29,39 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Load an optional TOML file under the usual precedence.
+
+        Precedence (highest first): constructor arguments, environment
+        variables, ``.env``, ``bridge-agents.toml`` (or ``$BRIDGE_CONFIG``),
+        file secrets. Secrets therefore belong in the environment while
+        non-secret settings can live in version-controlled TOML.
+        """
+        candidates = [
+            os.environ.get("BRIDGE_CONFIG", ""),
+            "bridge-agents.toml",
+        ]
+        toml_file = next(
+            (candidate for candidate in candidates if candidate and Path(candidate).is_file()),
+            "",
+        )
+        sources: tuple[PydanticBaseSettingsSource, ...] = (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+        )
+        if toml_file:
+            sources += (TomlConfigSettingsSource(settings_cls, toml_file=toml_file),)
+        return (*sources, file_secret_settings)
 
     # Application
     app_name: str = "Bridge-Agents"

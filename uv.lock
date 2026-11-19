@@ -9,7 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "bridge-agents",
-    "bridge-agents-app",
+    "bridge-agents-server",
 ]
 
 [[package]]
@@ -165,13 +165,11 @@ requires-dist = [
 ]
 
 [[package]]
-name = "bridge-agents-app"
+name = "bridge-agents-server"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "aiomysql" },
     { name = "aiosqlite" },
-    { name = "asyncpg" },
     { name = "bridge-agents" },
     { name = "cryptography" },
     { name = "fastapi" },
@@ -187,6 +185,14 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.optional-dependencies]
+mysql = [
+    { name = "aiomysql" },
+]
+postgres = [
+    { name = "asyncpg" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
@@ -197,9 +203,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiomysql", specifier = ">=0.2" },
+    { name = "aiomysql", marker = "extra == 'mysql'", specifier = ">=0.2" },
     { name = "aiosqlite", specifier = ">=0.20" },
-    { name = "asyncpg", specifier = ">=0.29" },
+    { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.29" },
     { name = "bridge-agents", editable = "packages/bridge_agents" },
     { name = "cryptography", specifier = ">=43" },
     { name = "fastapi", specifier = ">=0.115" },
@@ -214,6 +220,7 @@ requires-dist = [
     { name = "tzdata", specifier = ">=2024.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
+provides-extras = ["postgres", "mysql"]
 
 [package.metadata.requires-dev]
 dev = [

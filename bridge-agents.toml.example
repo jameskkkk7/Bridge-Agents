@@ -1,0 +1,42 @@
+# Bridge-Agents server configuration (non-secret values only).
+# Copy to bridge-agents.toml, or point BRIDGE_CONFIG at this file.
+#
+# Precedence: CLI arguments > environment variables > .env > this file.
+# Secrets (JWT_SECRET, provider API keys) belong in .env or the environment.
+
+app_name = "Bridge-Agents"
+app_version = "0.1.0"
+app_env = "development"
+debug = false
+log_level = "INFO"
+
+# HTTP server
+host = "0.0.0.0"
+port = 8000
+allowed_hosts = "*"
+cors_origins = ""
+
+# Storage
+database_url = "sqlite+aiosqlite:///./data/bridge-agents.db"
+storage_dir = "./data/uploads"
+docs_dir = "./docs/kb"
+knowledge_dir = "./data/knowledge"
+web_dist_dir = "web/dist"
+
+# Authentication
+# hs256 = local demo tokens, rs256_pem / jwks = external identity provider.
+auth_verifier = "hs256"
+allow_dev_login = true
+jwt_issuer = "bridge-agents"
+
+# Model provider (non-secret parts; the key stays in .env)
+llm_provider = "openai"
+openai_base_url = "https://api.openai.com/v1"
+openai_model = "gpt-4o-mini"
+openai_timeout = 60
+openai_max_retries = 3
+
+# Optional provider moderation for the sanitize node
+moderation_provider = "openai"
+moderation_timeout = 5.0
+moderation_allowed_hosts = ""

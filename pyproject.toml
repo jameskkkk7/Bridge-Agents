@@ -3,9 +3,9 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bridge-agents-app"
+name = "bridge-agents-server"
 version = "0.1.0"
-description = "Bridge-Agents server: review-gated agent runtime for customer conversations."
+description = "Bridge-Agents server: FastAPI + database + CLI for the review-gated agent runtime."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
@@ -24,8 +24,6 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "sqlalchemy[asyncio]>=2.0.30",
     "aiosqlite>=0.20",
-    "aiomysql>=0.2",
-    "asyncpg>=0.29",
     "pydantic>=2.9",
     "pydantic-settings>=2.4",
     "pyjwt>=2.9",
@@ -35,8 +33,12 @@ dependencies = [
     "langgraph>=0.2.60",
     "langchain-openai>=0.2",
     "tzdata>=2024.1",
-    "bridge-agents",
+    "bridge-agents==0.1.0",
 ]
+
+[project.optional-dependencies]
+postgres = ["asyncpg>=0.29"]
+mysql = ["aiomysql>=0.2"]
 
 [project.scripts]
 bridge-agents = "app.cli:main"
