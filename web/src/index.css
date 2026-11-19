@@ -242,3 +242,14 @@
 .react-flow__handle:hover {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent);
 }
+
+/* Keep the React Flow overlays clear of the card's rounded corners. */
+.react-flow__panel.react-flow__controls {
+  bottom: 24px;
+  left: 24px;
+}
+
+.react-flow__panel.react-flow__minimap {
+  bottom: 24px;
+  right: 24px;
+}
