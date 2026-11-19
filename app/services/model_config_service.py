@@ -27,6 +27,8 @@ _SECRET_CONTEXT = "bridge-agents:model-config:v1"
 
 # Fields that may be overridden at runtime.
 _OVERRIDE_FIELDS = (
+    "llm_provider",
+    "openai_api_version",
     "openai_base_url",
     "openai_model",
     "openai_temperature",
@@ -95,6 +97,8 @@ async def save_override(db: AsyncSession, settings: Settings, payload) -> dict:
         encrypted = encrypt_secret(settings, payload.api_key)
 
     stored = {
+        "llm_provider": payload.provider.strip().lower(),
+        "openai_api_version": payload.api_version or "2024-10-21",
         "openai_base_url": payload.base_url.strip(),
         "openai_model": payload.model.strip(),
         "openai_temperature": payload.temperature,
@@ -134,8 +138,10 @@ def describe(settings: Settings, override: dict | None) -> dict:
     else:
         key_source = "none"
     return {
+        "provider": effective.llm_provider,
         "base_url": effective.openai_base_url,
         "model": effective.openai_model,
+        "api_version": effective.openai_api_version,
         "temperature": effective.openai_temperature,
         "timeout": effective.openai_timeout,
         "max_retries": effective.openai_max_retries,

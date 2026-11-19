@@ -7,16 +7,38 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
 
+# Vendors selectable in Studio -> Settings. Everything except Azure OpenAI is
+# called through its OpenAI-compatible chat-completions endpoint.
+MODEL_PROVIDERS = (
+    "openai",
+    "azure",
+    "deepseek",
+    "qwen",
+    "moonshot",
+    "zhipu",
+    "volcengine",
+    "baidu",
+    "minimax",
+    "siliconflow",
+    "openrouter",
+    "gemini",
+    "anthropic",
+    "ollama",
+    "custom",
+)
+
 
 class ModelConfigView(BaseModel):
     """Effective model configuration shown in the studio."""
 
+    provider: str
     base_url: str
     model: str
     temperature: float
     timeout: int
     max_retries: int
     thinking_enabled: bool
+    api_version: str = ""
     api_key_configured: bool
     api_key_source: Literal["runtime", "environment", "none"]
     source: Literal["runtime", "environment"]
@@ -25,18 +47,33 @@ class ModelConfigView(BaseModel):
 class ModelConfigUpdate(BaseModel):
     """Validated update for the runtime model configuration."""
 
+    provider: str = Field(default="openai", max_length=40)
     base_url: str = Field(min_length=1, max_length=500)
     model: str = Field(min_length=1, max_length=200)
     temperature: float = Field(default=1.0, ge=0, le=2)
     timeout: int = Field(default=60, ge=1, le=300)
     max_retries: int = Field(default=3, ge=0, le=10)
     thinking_enabled: bool = False
+    api_version: str = Field(default="2024-10-21", max_length=40)
     api_key: str | None = Field(
         default=None,
         max_length=500,
         description="New API key; omit to keep the stored key.",
     )
     clear_api_key: bool = False
+
+    @field_validator("provider")
+    @classmethod
+    def _validate_provider(cls, value: str) -> str:
+        cleaned = value.strip().lower()
+        if cleaned not in MODEL_PROVIDERS:
+            raise ValueError(f"unsupported model provider: {cleaned}")
+        return cleaned
+
+    @field_validator("api_version")
+    @classmethod
+    def _validate_api_version(cls, value: str) -> str:
+        return value.strip()
 
     @field_validator("base_url")
     @classmethod

@@ -11,13 +11,17 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import SelectMenu from "@/components/ui/select-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { deleteJson, errorText, getJson, putJson } from "@/api";
 import { useLanguage } from "@/i18n";
+import { MODEL_PROVIDERS, providerPreset } from "./model-presets";
 
 interface ModelConfig {
+  provider: string;
   base_url: string;
   model: string;
+  api_version: string;
   temperature: number;
   timeout: number;
   max_retries: number;
@@ -41,7 +45,9 @@ export default function SettingsPanel({
 }) {
   const { t } = useLanguage();
   const [config, setConfig] = useState<ModelConfig | null>(null);
+  const [provider, setProvider] = useState("openai");
   const [baseUrl, setBaseUrl] = useState("");
+  const [apiVersion, setApiVersion] = useState("2024-10-21");
   const [model, setModel] = useState("");
   const [temperature, setTemperature] = useState(1);
   const [timeout, setTimeout] = useState(60);
@@ -56,7 +62,9 @@ export default function SettingsPanel({
 
   const applyConfig = (value: ModelConfig) => {
     setConfig(value);
+    setProvider(value.provider);
     setBaseUrl(value.base_url);
+    setApiVersion(value.api_version || "2024-10-21");
     setModel(value.model);
     setTemperature(value.temperature);
     setTimeout(value.timeout);
@@ -80,6 +88,15 @@ export default function SettingsPanel({
     void load().catch((caught) => onError(errorText(caught)));
   }, [token]);
 
+  const chooseProvider = (id: string) => {
+    setProvider(id);
+    const preset = providerPreset(id);
+    if (!preset || id === "custom") return;
+    setBaseUrl(preset.baseUrl);
+    setModel(preset.model);
+    if (preset.apiVersion) setApiVersion(preset.apiVersion);
+  };
+
   const saveModel = async () => {
     onError("");
     setNotice("");
@@ -88,8 +105,10 @@ export default function SettingsPanel({
       const updated = await putJson<ModelConfig>(
         "/admin/runtime-config/model-config",
         {
+          provider,
           base_url: baseUrl,
           model,
+          api_version: apiVersion,
           temperature,
           timeout,
           max_retries: maxRetries,
@@ -173,14 +192,47 @@ export default function SettingsPanel({
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="grid gap-1.5">
-              <Label htmlFor="model-base-url">{t("settings.baseUrl")}</Label>
+              <Label htmlFor="model-provider">{t("settings.provider")}</Label>
+              <SelectMenu
+                id="model-provider"
+                value={provider}
+                onChange={chooseProvider}
+                options={MODEL_PROVIDERS.map((preset) => ({
+                  value: preset.id,
+                  label: t(`settings.provider.${preset.id}`),
+                }))}
+              />
+              <span className="text-xs text-muted-foreground">{t("settings.providerHelp")}</span>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="model-base-url">
+                {provider === "azure" ? t("settings.azureEndpoint") : t("settings.baseUrl")}
+              </Label>
               <Input
                 id="model-base-url"
                 value={baseUrl}
-                placeholder="https://api.openai.com/v1"
+                placeholder={
+                  provider === "azure"
+                    ? "https://<resource>.openai.azure.com"
+                    : "https://api.openai.com/v1"
+                }
                 onChange={(event) => setBaseUrl(event.target.value)}
               />
+              {provider === "anthropic" && (
+                <span className="text-xs text-warning">{t("settings.providerGatewayHint")}</span>
+              )}
             </div>
+            {provider === "azure" && (
+              <div className="grid gap-1.5">
+                <Label htmlFor="model-api-version">{t("settings.apiVersion")}</Label>
+                <Input
+                  id="model-api-version"
+                  value={apiVersion}
+                  placeholder="2024-10-21"
+                  onChange={(event) => setApiVersion(event.target.value)}
+                />
+              </div>
+            )}
             <div className="grid gap-1.5">
               <Label htmlFor="model-name">{t("settings.model")}</Label>
               <Input

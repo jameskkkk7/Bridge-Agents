@@ -206,3 +206,50 @@ async def test_agent_prompt_requires_staff_and_content(client: AsyncClient) -> N
         headers=agent_headers,
     )
     assert empty.status_code == 422
+
+
+async def test_model_config_defaults_report_openai_provider(client: AsyncClient) -> None:
+    response = await client.get(
+        "/api/v1/admin/runtime-config/model-config", headers=await _agent_headers(client)
+    )
+    assert response.status_code == 200
+    assert response.json()["provider"] == "openai"
+
+
+async def test_saving_azure_provider_builds_an_azure_client(client: AsyncClient, app) -> None:
+    from langchain_openai import AzureChatOpenAI
+
+    response = await client.put(
+        "/api/v1/admin/runtime-config/model-config",
+        json={
+            "provider": "azure",
+            "base_url": "https://example-resource.openai.azure.com",
+            "model": "gpt-4o-mini",
+            "api_version": "2024-10-21",
+            "api_key": "sk-azure-test",
+        },
+        headers=await _agent_headers(client),
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["provider"] == "azure"
+    assert body["api_version"] == "2024-10-21"
+    assert body["base_url"] == "https://example-resource.openai.azure.com"
+
+    pipeline = app.state.agent_pipeline
+    assert isinstance(pipeline._chat_model, AzureChatOpenAI)
+    assert pipeline._settings.llm_provider == "azure"
+    assert pipeline._settings.openai_api_version == "2024-10-21"
+
+
+async def test_unknown_provider_is_rejected(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/admin/runtime-config/model-config",
+        json={
+            "provider": "not-a-vendor",
+            "base_url": "https://llm.example.test/v1",
+            "model": "some-model",
+        },
+        headers=await _agent_headers(client),
+    )
+    assert response.status_code == 422
