@@ -104,7 +104,7 @@ flowchart LR
 ### Studio 覆盖运营的其余工作
 
 - **知识** — 上传文档、重建索引、搜索预览；也可以把 `DOCS_DIR` 指向已有的文档目录。
-- **模型** — 选择厂商预设（OpenAI、Azure OpenAI 等 15 个）与 Endpoint；填写 API Key 后自动从服务商获取可用模型并以下拉框选择（Azure 列出部署）。API Key 加密存储，接口不回显。
+- **模型** — 选择厂商预设（OpenAI、Azure OpenAI 等 15 个）与 Endpoint；填写 API Key 后自动从服务商获取可用模型并以下拉框选择（Azure 列出部署）。预设地址已按厂商官方文档核对，见 [docs/providers.md](docs/providers.md)。API Key 加密存储，接口不回显。
 - **客服提示词** — 在同一个地方编辑助手系统提示词。
 - **内容安全** — 在 sanitize 节点启用第三方审核，选择厂商、兜底文案与 fail-open / fail-closed 策略。
 - **角色与语言** — 客服与管理员可编辑，客户只能对话；界面中英双语、明暗主题、移动端自适应。
@@ -330,6 +330,7 @@ app.mount("/bridge-agents", create_app())
 - [packages/bridge_agents/README.md](packages/bridge_agents/README.md) —— 库用法
 - [CHANGELOG.md](CHANGELOG.md) —— 最近变更
 - [docs/releasing.md](docs/releasing.md) —— 发布清单、PyPI/GHCR 发布与回滚
+- [docs/providers.md](docs/providers.md) —— 已核对的模型服务地址与模型获取说明
 
 ## 许可证
 

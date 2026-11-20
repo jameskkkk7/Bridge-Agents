@@ -1,54 +1,106 @@
+/**
+ * Provider presets used by Studio -> Settings.
+ *
+ * Every base URL below was checked against the vendor's official documentation
+ * on 2026-11-20. See docs/providers.md for the verified table, model-list
+ * support and international alternatives.
+ */
 export interface ModelProviderPreset {
   id: string;
   baseUrl: string;
-  model: string;
   apiVersion?: string;
-  /** Vendor exposes no official OpenAI-compatible endpoint. */
+  /** Provider needs an OpenAI-compatible gateway or compatibility layer. */
   gateway?: boolean;
+  /** Official documentation for the base URL / compatibility layer. */
+  docsUrl: string;
 }
 
 export const MODEL_PROVIDERS: ModelProviderPreset[] = [
-  { id: "openai", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+  {
+    id: "openai",
+    baseUrl: "https://api.openai.com/v1",
+    docsUrl: "https://developers.openai.com/api/docs",
+  },
   {
     id: "azure",
     baseUrl: "",
-    model: "gpt-4o-mini",
     apiVersion: "2024-10-21",
+    docsUrl: "https://learn.microsoft.com/azure/ai-services/openai/reference",
   },
-  { id: "deepseek", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
   {
+    // Official OpenAI-compatible base URL; /v1 is also accepted by DeepSeek.
+    id: "deepseek",
+    baseUrl: "https://api.deepseek.com",
+    docsUrl: "https://api-docs.deepseek.com/quick_start/your_first_api_call",
+  },
+  {
+    // Beijing shared domain. International: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+    // Production can use the workspace-specific domain documented by Alibaba Cloud.
     id: "qwen",
     baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    model: "qwen-plus",
+    docsUrl: "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope",
   },
-  { id: "moonshot", baseUrl: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
-  { id: "zhipu", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash" },
+  {
+    // International alternative: https://api.moonshot.ai/v1
+    id: "moonshot",
+    baseUrl: "https://api.moonshot.cn/v1",
+    docsUrl: "https://platform.kimi.com/docs/api/overview",
+  },
+  {
+    id: "zhipu",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    docsUrl: "https://docs.bigmodel.cn/cn/api/introduction",
+  },
   {
     id: "volcengine",
     baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
-    model: "doubao-pro-32k",
+    docsUrl: "https://docs.volcengine.com/docs/ark/models-api",
   },
-  { id: "baidu", baseUrl: "https://qianfan.baidubce.com/v2", model: "ernie-4.0-8k" },
-  { id: "minimax", baseUrl: "https://api.minimax.chat/v1", model: "abab6.5s-chat" },
   {
+    id: "baidu",
+    baseUrl: "https://qianfan.baidubce.com/v2",
+    docsUrl: "https://cloud.baidu.com/doc/qianfan/s/Hmh4suq26",
+  },
+  {
+    // Current OpenAI-compatible domain. International: https://api.minimax.io/v1
+    id: "minimax",
+    baseUrl: "https://api.minimax.cn/v1",
+    docsUrl: "https://platform.minimax.cn/docs/api-reference/text-openai-api",
+  },
+  {
+    // International alternative: https://api.siliconflow.com/v1
     id: "siliconflow",
     baseUrl: "https://api.siliconflow.cn/v1",
-    model: "Qwen/Qwen2.5-7B-Instruct",
+    docsUrl: "https://docs.siliconflow.cn/cn/userguide/quickstart",
   },
-  { id: "openrouter", baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini" },
+  {
+    id: "openrouter",
+    baseUrl: "https://openrouter.ai/api/v1",
+    docsUrl: "https://openrouter.ai/docs/guides/features/compatibility",
+  },
   {
     id: "gemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-    model: "gemini-2.0-flash",
+    docsUrl: "https://ai.google.dev/gemini-api/docs/openai",
   },
   {
+    // Official OpenAI SDK compatibility layer; chat works, model listing does not.
     id: "anthropic",
-    baseUrl: "",
-    model: "claude-sonnet-4-20250514",
+    baseUrl: "https://api.anthropic.com/v1",
     gateway: true,
+    docsUrl: "https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk",
   },
-  { id: "ollama", baseUrl: "http://127.0.0.1:11434/v1", model: "llama3.1" },
-  { id: "custom", baseUrl: "", model: "" },
+  {
+    // Local Ollama; cloud OpenAI-compatible base URL is https://ollama.com/v1
+    id: "ollama",
+    baseUrl: "http://127.0.0.1:11434/v1",
+    docsUrl: "https://docs.ollama.com/api/openai-compatibility",
+  },
+  {
+    id: "custom",
+    baseUrl: "",
+    docsUrl: "",
+  },
 ];
 
 export function providerPreset(id: string): ModelProviderPreset | undefined {

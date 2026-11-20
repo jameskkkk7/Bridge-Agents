@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SelectMenu from "@/components/ui/select-menu";
 import { errorText, postJson } from "@/api";
@@ -38,6 +39,7 @@ export default function ModelPicker({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [source, setSource] = useState("");
+  const [manual, setManual] = useState(false);
   const requestId = useRef(0);
   const modelRef = useRef(model);
   const onChangeRef = useRef(onChange);
@@ -63,6 +65,7 @@ export default function ModelPicker({
       if (currentRequest !== requestId.current) return;
       setModels(catalog.models);
       setSource(catalog.base_url);
+      setError("");
       const current = modelRef.current;
       if (catalog.models.length > 0 && !catalog.models.includes(current)) {
         onChangeRef.current(catalog.models[0]);
@@ -80,6 +83,7 @@ export default function ModelPicker({
     return () => window.clearTimeout(timer);
   }, [fetchModels, apiKeyConfigured, apiKey]);
 
+  const showManual = manual || Boolean(error);
   const options = models.length > 0 ? [...models] : model ? [model] : [];
   if (model && !options.includes(model)) {
     options.unshift(model);
@@ -107,15 +111,26 @@ export default function ModelPicker({
           {loading ? t("settings.fetchingModels") : t("settings.fetchModels")}
         </Button>
       </div>
-      <SelectMenu
-        id="model-name"
-        value={model}
-        options={modelOptions}
-        onChange={onChange}
-        disabled={loading || modelOptions.length === 0}
-      />
+      {showManual ? (
+        <Input
+          id="model-name-manual"
+          value={model}
+          placeholder={t("settings.modelManualPlaceholder")}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      ) : (
+        <SelectMenu
+          id="model-name"
+          value={model}
+          options={modelOptions}
+          onChange={onChange}
+          disabled={loading || modelOptions.length === 0}
+        />
+      )}
       {error ? (
         <span className="text-xs text-destructive">{error}</span>
+      ) : showManual ? (
+        <span className="text-xs text-muted-foreground">{t("settings.modelManualHint")}</span>
       ) : models.length > 0 ? (
         <span className="text-xs text-muted-foreground">
           {t("settings.modelSource", { url: source })}
@@ -123,6 +138,20 @@ export default function ModelPicker({
       ) : (
         <span className="text-xs text-muted-foreground">{t("settings.modelHint")}</span>
       )}
+      <button
+        type="button"
+        className="justify-self-start text-xs text-muted-foreground underline-offset-2 hover:underline"
+        onClick={() => {
+          if (showManual) {
+            setManual(false);
+            setError("");
+          } else {
+            setManual(true);
+          }
+        }}
+      >
+        {showManual ? t("settings.modelAuto") : t("settings.modelManual")}
+      </button>
     </div>
   );
 }

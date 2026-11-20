@@ -101,6 +101,11 @@ conversations, with a deterministic offline demo.
   accounts and workspaces, billing and invoices, refunds and cancellations,
   desktop sync, sign-in/SSO troubleshooting, API and webhooks, security and
   compliance, and support SLAs (10 documents, 64 indexed chunks).
+- **Provider addresses:** every Studio provider preset was re-checked against
+  the vendors' current official documentation (DeepSeek base URL without /v1,
+  MiniMax's api.minimax.cn domain, Anthropic's official OpenAI SDK compatibility
+  endpoint, Azure resource endpoint, international alternatives). Providers
+  without a compatible model-list API fall back to a manual model field.
 - **Model settings:** model names are no longer typed by hand. Once an API key
   is available (new, stored or environment), Studio asks the provider for its
   models — OpenAI-compatible `/models` or Azure deployments — and offers a

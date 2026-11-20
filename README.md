@@ -125,8 +125,9 @@ restart.
   point `DOCS_DIR` at an existing documentation folder.
 - **Model** — pick a provider preset (OpenAI, Azure OpenAI and 13 more) and an
   endpoint; the available models are fetched from the provider and shown as a
-  dropdown (Azure lists deployments). The API key is stored encrypted and never
-  returned by the API.
+  dropdown (Azure lists deployments). Preset endpoints are verified against the
+  vendors' docs in [docs/providers.md](docs/providers.md). The API key is stored
+  encrypted and never returned by the API.
 - **Support prompt** — edit the agent's system prompt in the same place.
 - **Moderation** — enable provider moderation per sanitize node, choose the
   vendor, fallback text and fail-open/fail-closed policy.
@@ -423,6 +424,7 @@ with an allow-list. See [SECURITY.md](SECURITY.md) for reporting.
 - [packages/bridge_agents/README.md](packages/bridge_agents/README.md) — library usage
 - [CHANGELOG.md](CHANGELOG.md) — recent changes
 - [docs/releasing.md](docs/releasing.md) — release checklist, PyPI/GHCR publishing and rollback
+- [docs/providers.md](docs/providers.md) — verified provider endpoints and model-discovery notes
 
 ## License
 
