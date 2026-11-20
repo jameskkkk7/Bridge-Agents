@@ -97,7 +97,15 @@ conversations, with a deterministic offline demo.
   playbook covering identity, grounded answers with citations, tone,
   policy limits, tool use, safety/privacy, human handover, formatting and
   uncertainty handling.
-- **Quality:** 312 offline tests, 91% combined line coverage of `app/core` and
+- **Demo knowledge base:** eight additional customer-support articles cover
+  accounts and workspaces, billing and invoices, refunds and cancellations,
+  desktop sync, sign-in/SSO troubleshooting, API and webhooks, security and
+  compliance, and support SLAs (10 documents, 64 indexed chunks).
+- **Release engineering:** a version consistency check, a tag-driven GitHub
+  release workflow (wheels, static GUI archive, GHCR server/web images and a
+  GitHub Release) and a manual PyPI trusted-publishing workflow, documented
+  in `docs/releasing.md`.
+- **Quality:** 315 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
 

@@ -1,0 +1,55 @@
+name: Publish to PyPI
+
+# Manual, opt-in publication of the two Python distributions.
+#
+# One-time setup (see docs/releasing.md):
+#   * create GitHub environment `pypi` with required reviewers;
+#   * on PyPI, add a trusted publisher for BOTH projects
+#     (`bridge-agents` and `bridge-agents-server`) with:
+#       owner = this repository owner
+#       repository = this repository
+#       workflow = publish-pypi.yml
+#       environment = pypi
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Publish the current tagged version to PyPI"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Build and publish wheels
+    if: ${{ inputs.confirm }}
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
+      - name: Install Python
+        run: uv python install 3.11
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Require an exact version tag
+        run: uv run python scripts/check_version.py --tag "$(git describe --tags --exact-match)"
+      - name: Build distributions
+        run: |
+          uv build --package bridge-agents
+          uv build --package bridge-agents-server
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          print-hash: true

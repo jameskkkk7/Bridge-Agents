@@ -454,13 +454,19 @@ uv run pytest --cov=app/core --cov=bridge_agents --cov-report=term-missing --cov
 uv run ruff check .                                                         # clean
 uv run ruff format --check .                                                # clean
 uv run python scripts/check_sanitized.py                                    # exit 0
+uv run python scripts/check_version.py --tag v0.1.0                         # release check
 ```
 
-Current snapshot: **312 tests** collected, **91%** combined line coverage of
+Current snapshot: **315 tests** collected, **91%** combined line coverage of
 `app/core` and the extracted `bridge_agents` library (build gate: 70%), ruff
 clean, and the repository sanitisation gate passes. The tree today is 4,188
 lines of application Python, a 2,765-line library, 4,317 lines of tests and a
 2,061-line web demo.
+
+Release artifacts are produced by `.github/workflows/release.yml` on a `v*` tag:
+quality gates, both wheels, the static GUI archive, GHCR images and a GitHub
+Release. PyPI publication stays a separate manual workflow; the checklist is in
+[docs/releasing.md](releasing.md).
 
 ## Design decisions
 
@@ -487,14 +493,13 @@ app/
   services/     sessions, messages, images, reply engine/handler, runtime config, takeover
   services/channels/  channel abstraction and the Lark adapter
   ws/           websocket gateway (subscriptions, streaming, rate limiting)
-  cli.py        `bridge-agents` CLI: demo, serve, init-db, doctor, version
   cli.py        `bridge-agents` CLI: init, config check, serve, init-db, demo, doctor
   main.py       application factory and lifespan wiring
 packages/bridge_agents/  standalone core library (agent runtime, auth, guard, rate limit)
-tests/          312 offline tests (fake model, fake compiled graph, mock Lark transport)
+tests/          315 offline tests (fake model, fake compiled graph, mock Lark transport)
 docs/kb/        fictional product documentation used by the search tool
 docs/assets/    documentation artwork
-scripts/        init_db.py, demo.py, package_web.py, check_sanitized.py, allowlist
+scripts/        init_db.py, demo.py, package_web.py, check_version.py, check_sanitized.py, allowlist
 deploy/         nginx.conf, bridge-agents.service, deployment guide
 Dockerfile      api image (non-root, healthcheck)
 docker-compose.yml  api + mock-llm + web (+ optional mysql profile)

@@ -366,7 +366,7 @@ not an acceptable answer.
 | Customer demo with nickname entry, conversation history and attachments | Kubernetes/Helm deployment option |
 | Lark channel, bilingual/responsive UI, light/dark themes | — |
 | Packaging, CLI, TOML configuration, static GUI release, systemd/nginx templates | — |
-| 312 offline tests, 91% coverage, ruff and sanitisation gates | — |
+| 315 offline tests, 91% coverage, ruff and sanitisation gates | — |
 
 ## FAQ
 
@@ -420,6 +420,7 @@ with an allow-list. See [SECURITY.md](SECURITY.md) for reporting.
 - [deploy/README.md](deploy/README.md) — production topology and checklist
 - [packages/bridge_agents/README.md](packages/bridge_agents/README.md) — library usage
 - [CHANGELOG.md](CHANGELOG.md) — recent changes
+- [docs/releasing.md](docs/releasing.md) — release checklist, PyPI/GHCR publishing and rollback
 
 ## License
 

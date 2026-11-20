@@ -293,7 +293,7 @@ app.mount("/bridge-agents", create_app())
 | 客户演示：昵称进入、多会话记录、附件 | Kubernetes/Helm 部署选项 |
 | 飞书渠道、中英双语、响应式、明暗主题 | — |
 | 打包、CLI、TOML 配置、静态 GUI 发布、systemd/nginx 模板 | — |
-| 312 项离线测试、91% 覆盖率、ruff 与内容清洗门禁 | — |
+| 315 项离线测试、91% 覆盖率、ruff 与内容清洗门禁 | — |
 
 ## 常见问题
 
@@ -329,6 +329,7 @@ app.mount("/bridge-agents", create_app())
 - [deploy/README.md](deploy/README.md) —— 生产拓扑与检查清单
 - [packages/bridge_agents/README.md](packages/bridge_agents/README.md) —— 库用法
 - [CHANGELOG.md](CHANGELOG.md) —— 最近变更
+- [docs/releasing.md](docs/releasing.md) —— 发布清单、PyPI/GHCR 发布与回滚
 
 ## 许可证
 

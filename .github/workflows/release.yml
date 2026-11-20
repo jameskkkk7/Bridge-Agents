@@ -1,0 +1,147 @@
+name: Release
+
+# Push a SemVer tag (for example `v0.1.0`) to build and publish:
+#   * Python wheels + sdists (bridge-agents, bridge-agents-server)
+#   * the versioned static GUI archive (bridge-agents-web)
+#   * GitHub Release with all artifacts attached
+#   * server and web container images on GHCR
+#
+# PyPI publishing is intentionally a separate manual workflow
+# (`.github/workflows/publish-pypi.yml`) because it needs a protected
+# environment and one-time trusted-publisher configuration.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
+      - name: Install Python
+        run: uv python install 3.11
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Check release versions
+        run: uv run python scripts/check_version.py --tag "${GITHUB_REF_NAME}"
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format check
+        run: uv run ruff format --check .
+      - name: Tests
+        run: uv run pytest -q
+      - name: Repository sanitisation
+        run: uv run python scripts/check_sanitized.py
+      - name: Compose configuration
+        run: docker compose config -q
+
+  artifacts:
+    name: Build release artifacts
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install Python
+        run: uv python install 3.11
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Build web GUI
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - name: Build wheels and static GUI archive
+        run: |
+          uv build --package bridge-agents
+          uv build --package bridge-agents-server
+          uv run python scripts/package_web.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+
+  images:
+    name: Publish container images (GHCR)
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute image repository
+        id: images
+        run: echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - name: Build and push server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.images.outputs.repo }}/server:${{ github.ref_name }}
+            ghcr.io/${{ steps.images.outputs.repo }}/server:latest
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: web
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.images.outputs.repo }}/web:${{ github.ref_name }}
+            ghcr.io/${{ steps.images.outputs.repo }}/web:latest
+
+  github-release:
+    name: Create GitHub Release
+    needs: artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: release-assets
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/*.whl
+            release-assets/*.tar.gz

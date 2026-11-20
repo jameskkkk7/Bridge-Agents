@@ -54,6 +54,28 @@ Production checklist:
 
 ---
 
+## Prebuilt release artifacts
+
+Each release tag publishes, on GitHub Releases:
+
+- `bridge_agents-<version>-*.whl` / `bridge_agents_server-<version>-*.whl` and sdists
+- `bridge-agents-web-<version>.tar.gz` (static GUI + nginx example)
+
+and container images on GHCR:
+
+```bash
+docker pull ghcr.io/<owner>/<repo>/server:<version>
+docker pull ghcr.io/<owner>/<repo>/web:<version>
+```
+
+`bridge-agents-server` is also published to PyPI when the maintainers enable the
+manual publish workflow; see [docs/releasing.md](../docs/releasing.md).
+
+The web image's nginx proxies `/api` and `/ws` to `http://api:8000`, the compose
+service name. To run the web image standalone, give the API container the
+network alias `api` on the same Docker network, or mount a custom nginx config
+pointing at your server. The static UI is served even when the API is absent.
+
 ## 2. Containers
 
 `docker compose up --build` (repository root) runs the API, a web container and
