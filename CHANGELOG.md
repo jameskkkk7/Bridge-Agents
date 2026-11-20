@@ -101,11 +101,14 @@ conversations, with a deterministic offline demo.
   accounts and workspaces, billing and invoices, refunds and cancellations,
   desktop sync, sign-in/SSO troubleshooting, API and webhooks, security and
   compliance, and support SLAs (10 documents, 64 indexed chunks).
+- **Knowledge base:** clicking a document in Studio opens a read-only full-text
+  preview (backed by `GET /api/v1/admin/knowledge/documents/{name}`); staff-only,
+  with size and passage counts, Escape/backdrop close.
 - **Release engineering:** a version consistency check, a tag-driven GitHub
   release workflow (wheels, static GUI archive, GHCR server/web images and a
   GitHub Release) and a manual PyPI trusted-publishing workflow, documented
   in `docs/releasing.md`.
-- **Quality:** 315 offline tests, 91% combined line coverage of `app/core` and
+- **Quality:** 318 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
 

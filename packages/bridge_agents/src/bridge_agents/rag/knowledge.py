@@ -202,6 +202,30 @@ class KnowledgeBase:
         self.reload(force=True)
         return target
 
+    def read_document(self, name: str) -> dict:
+        """Return one document's metadata and full text for the Studio preview."""
+        safe_name = Path(name).name
+        if (
+            not safe_name
+            or safe_name.startswith(".")
+            or Path(safe_name).suffix.lower() not in _SUPPORTED_SUFFIXES
+        ):
+            raise ValueError("Unsupported document name")
+        target = self.directory / safe_name
+        if not target.is_file():
+            raise FileNotFoundError(safe_name)
+        stat = target.stat()
+        chunks = next(
+            (entry["chunks"] for entry in self.documents() if entry["name"] == safe_name), 0
+        )
+        return {
+            "name": safe_name,
+            "bytes": stat.st_size,
+            "modified": stat.st_mtime,
+            "chunks": chunks,
+            "content": target.read_text(encoding="utf-8"),
+        }
+
     def delete_document(self, name: str) -> bool:
         """Remove one document and rebuild the index."""
         target = self.directory / Path(name).name

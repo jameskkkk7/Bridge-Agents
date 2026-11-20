@@ -366,7 +366,7 @@ not an acceptable answer.
 | Customer demo with nickname entry, conversation history and attachments | Kubernetes/Helm deployment option |
 | Lark channel, bilingual/responsive UI, light/dark themes | — |
 | Packaging, CLI, TOML configuration, static GUI release, systemd/nginx templates | — |
-| 315 offline tests, 91% coverage, ruff and sanitisation gates | — |
+| 318 offline tests, 91% coverage, ruff and sanitisation gates | — |
 
 ## FAQ
 

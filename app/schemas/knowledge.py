@@ -14,6 +14,12 @@ class KnowledgeDocument(BaseModel):
     chunks: int
 
 
+class KnowledgeDocumentContent(KnowledgeDocument):
+    """One document with its full text (read-only Studio preview)."""
+
+    content: str
+
+
 class KnowledgeStatus(BaseModel):
     """Index and directory status shown in the demo studio."""
 

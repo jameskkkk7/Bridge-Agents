@@ -134,6 +134,10 @@ export const en: Record<string, string> = {
   "knowledge.reindexed": "Index rebuilt from the knowledge directory.",
   "knowledge.uploaded": "Uploaded {name} and reindexed.",
   "knowledge.deleted": "Deleted {name}.",
+"knowledge.viewDocument": "View document",
+"knowledge.loadingDocument": "Loading document…",
+"knowledge.documentHelp": "Read-only preview, shown exactly as stored.",
+"knowledge.documentLoadFailed": "Could not load the document.",
   "settings.modelTitle": "Model configuration",
   "settings.modelHelp":
     "Used by the agent, custom and review nodes. Saving applies immediately to new messages.",

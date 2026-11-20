@@ -20,6 +20,7 @@ from app.models.user import User
 from app.schemas.knowledge import (
     KnowledgeDeleted,
     KnowledgeDocument,
+    KnowledgeDocumentContent,
     KnowledgeDocumentSaved,
     KnowledgeHit,
     KnowledgeSearchResult,
@@ -92,6 +93,21 @@ async def list_knowledge_documents(
 ) -> list[KnowledgeDocument]:
     """List the documents that make up the knowledge base."""
     return [KnowledgeDocument(**entry) for entry in knowledge_for(request.app).documents()]
+
+
+@router.get("/documents/{name}", response_model=KnowledgeDocumentContent)
+async def read_knowledge_document(
+    request: Request, name: str, _: User = Depends(require_agent)
+) -> KnowledgeDocumentContent:
+    """Return the full text of one document for the Studio preview."""
+    base = knowledge_for(request.app)
+    try:
+        entry = base.read_document(name)
+    except FileNotFoundError as exc:
+        raise NotFoundError("Document not found") from exc
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+    return KnowledgeDocumentContent(**entry)
 
 
 @router.post("/documents", response_model=KnowledgeDocumentSaved, status_code=201)

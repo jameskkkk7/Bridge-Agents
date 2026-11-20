@@ -122,3 +122,33 @@ async def test_document_listing(client: AsyncClient) -> None:
     assert response.status_code == 200
     assert isinstance(response.json(), list)
     assert response.json()
+
+
+async def test_read_document_returns_full_content(client: AsyncClient) -> None:
+    headers = await _agent_headers(client)
+    response = await client.get("/api/v1/admin/knowledge/documents/widget-pro.md", headers=headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["name"] == "widget-pro.md"
+    assert body["content"].startswith("# Widget Pro")
+    assert "## Refund policy" in body["content"]
+    assert body["bytes"] == len(body["content"].encode("utf-8"))
+    assert body["chunks"] >= 1
+
+
+async def test_read_document_requires_staff(client: AsyncClient) -> None:
+    assert (await client.get("/api/v1/admin/knowledge/documents/widget-pro.md")).status_code == 401
+    customer = await dev_login(client, "user")
+    response = await client.get(
+        "/api/v1/admin/knowledge/documents/widget-pro.md",
+        headers=bearer(customer["access_token"]),
+    )
+    assert response.status_code == 403
+
+
+async def test_read_document_rejects_missing_and_unsupported_names(client: AsyncClient) -> None:
+    headers = await _agent_headers(client)
+    missing = await client.get("/api/v1/admin/knowledge/documents/missing.md", headers=headers)
+    assert missing.status_code == 404
+    unsupported = await client.get("/api/v1/admin/knowledge/documents/payload.exe", headers=headers)
+    assert unsupported.status_code == 422

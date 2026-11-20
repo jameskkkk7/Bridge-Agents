@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { RefreshCw, Search, Trash2, Upload } from "lucide-react";
+import { Eye, RefreshCw, Search, Trash2, Upload, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,9 @@ interface KnowledgeDocument {
   bytes: number;
   modified: number;
   chunks: number;
+}
+interface KnowledgeDocumentContent extends KnowledgeDocument {
+  content: string;
 }
 interface KnowledgeStatus {
   document_count: number;
@@ -70,6 +73,10 @@ export default function KnowledgePanel({
   const [result, setResult] = useState<KnowledgeSearch | null>(null);
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
+  const [previewName, setPreviewName] = useState("");
+  const [preview, setPreview] = useState<KnowledgeDocumentContent | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadStatus = async () => {
@@ -79,6 +86,15 @@ export default function KnowledgePanel({
   useEffect(() => {
     void loadStatus().catch((caught) => onError(errorText(caught)));
   }, [token]);
+
+  useEffect(() => {
+    if (!previewName) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewName("");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewName]);
 
   const runSearch = async () => {
     if (!query.trim()) return;
@@ -141,6 +157,33 @@ export default function KnowledgePanel({
     } finally {
       setBusy("");
     }
+  };
+
+  const openDocument = async (name: string) => {
+    onError("");
+    setPreviewName(name);
+    setPreview(null);
+    setPreviewError("");
+    setPreviewLoading(true);
+    try {
+      setPreview(
+        await getJson<KnowledgeDocumentContent>(
+          `/admin/knowledge/documents/${encodeURIComponent(name)}`,
+          token,
+        ),
+      );
+    } catch (caught) {
+      setPreviewError(t("knowledge.documentLoadFailed"));
+      onError(errorText(caught));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewName("");
+    setPreview(null);
+    setPreviewError("");
   };
 
   const stats = [
@@ -279,7 +322,16 @@ export default function KnowledgePanel({
               <tbody className="divide-y divide-border">
                 {status?.documents.map((document) => (
                   <tr key={document.name}>
-                    <td className="max-w-[180px] truncate py-2.5">{document.name}</td>
+                    <td className="max-w-[180px] py-2.5">
+                      <button
+                        type="button"
+                        className="block max-w-full truncate text-left font-medium hover:text-primary hover:underline"
+                        title={t("knowledge.viewDocument")}
+                        onClick={() => void openDocument(document.name)}
+                      >
+                        {document.name}
+                      </button>
+                    </td>
                     <td className="hidden py-2.5 text-xs text-muted-foreground sm:table-cell">
                       {formatBytes(document.bytes)}
                     </td>
@@ -287,6 +339,16 @@ export default function KnowledgePanel({
                       {document.chunks}
                     </td>
                     <td className="py-2.5 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => void openDocument(document.name)}
+                        aria-label={t("knowledge.viewDocument")}
+                        title={t("knowledge.viewDocument")}
+                      >
+                        <Eye />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -308,6 +370,54 @@ export default function KnowledgePanel({
           </CardContent>
         </Card>
       </div>
+
+      {previewName && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="presentation"
+          onClick={closePreview}
+        >
+          <Card
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="knowledge-preview-title"
+            className="flex max-h-[85vh] w-full max-w-3xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <CardHeader className="flex-row items-start justify-between gap-3 border-b border-border pb-4">
+              <div className="min-w-0">
+                <CardTitle id="knowledge-preview-title" className="truncate text-base">
+                  {previewName}
+                </CardTitle>
+                <CardDescription>
+                  {preview
+                    ? `${formatBytes(preview.bytes)} · ${preview.chunks} ${t("knowledge.colPassages")}`
+                    : t("knowledge.documentHelp")}
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={closePreview}
+                aria-label={t("common.close")}
+              >
+                <X />
+              </Button>
+            </CardHeader>
+            <CardContent className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              {previewLoading && (
+                <p className="text-sm text-muted-foreground">{t("knowledge.loadingDocument")}</p>
+              )}
+              {previewError && <p className="text-sm text-destructive">{previewError}</p>}
+              {preview && (
+                <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-foreground/90">
+                  {preview.content}
+                </pre>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
