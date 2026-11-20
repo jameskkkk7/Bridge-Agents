@@ -41,7 +41,7 @@ this README explains each one and how it is implemented.
 
 | 🧩 **Operators customize** | 🛡 **The runtime reviews** | 🔌 **It integrates, not replaces** |
 |---|---|---|
-| The conversation flow is saved data, not code. Business users rewire it on a visual canvas; a flow that cannot compile is rejected before it goes live. Model, prompt, knowledge and moderation settings are forms in the Studio, applied to the next message. | Every customer-visible reply passes layered checks: a deterministic hard gate, optional third-party moderation, an LLM reviewer, and human takeover. Text is buffered until the gate decides; a rejected draft is replaced by a safe fallback and never streamed. | Identity comes from your IdP, answers from your documentation, actions through your system APIs, data in your database, and the GUI is static files behind your nginx. Self-hosted, SQLite by default, no vendor lock-in. |
+| The conversation flow is saved data, not code. Business users rewire it on a visual canvas; a flow that cannot compile is rejected before it goes live. Model, knowledge and moderation settings are forms in the Studio; the support prompt is the flow's `system` node. Changes apply to the next message. | Every customer-visible reply passes layered checks: a deterministic hard gate, optional third-party moderation, an LLM reviewer, and human takeover. Text is buffered until the gate decides; a rejected draft is replaced by a safe fallback and never streamed. | Identity comes from your IdP, answers from your documentation, actions through your system APIs, data in your database, and the GUI is static files behind your nginx. Self-hosted, SQLite by default, no vendor lock-in. |
 
 ## Architecture
 
@@ -79,7 +79,7 @@ flowchart LR
 
 The product is deliberately split into four planes:
 
-- **Control plane** — the editable graph, prompt, model and moderation settings.
+- **Control plane** — the editable graph (including the support prompt), model and moderation settings.
   Owned by operators, validated on save, hot-swapped into the runtime.
 - **Data plane** — retrieval, model calls, tools and channel delivery
   ([`packages/bridge_agents`](packages/bridge_agents)).
@@ -129,7 +129,8 @@ restart.
   vendors' docs in [docs/providers.md](docs/providers.md). Save several validated
   API profiles and choose which one the whole system uses from the list on the
   right; API keys are stored encrypted and never returned.
-- **Support prompt** — edit the agent's system prompt in the same place.
+- **Support prompt** — the support prompt is the flow's `system` node, edited in the
+  flow editor (not in Settings); the Settings page only manages model APIs.
 - **Moderation** — enable provider moderation per sanitize node, choose the
   vendor, fallback text and fail-open/fail-closed policy.
 - **Roles and language** — support staff and admins edit; customers only chat.
@@ -364,7 +365,7 @@ not an acceptable answer.
 | Review gate with buffered streaming, retries, fallbacks and takeover | Immutable audit log, flow version history, approvals and rollback |
 | Local hard gate + 5 provider moderation adapters with fail policy and chunking | Browser OIDC login flow (JWKS/RS256 verification already works) |
 | Visual flow editor with validation, node inspector, auto layout and JSON fallback | Declarative HTTP/OpenAPI tools so operators can wire more systems without Python |
-| Studio: knowledge upload/reindex and full-text preview, saved and validated API profiles with active selection, prompt editor | PyPI publishing, container images and release automation |
+| Studio: knowledge upload/reindex and full-text preview, saved and validated API profiles with active selection | PyPI publishing, container images and release automation |
 | RAG with citations; 15 model provider presets including Azure OpenAI | Slack adapter, generic webhook API and an embeddable widget |
 | Support desk with takeover, AI/human labels and image transcript | Database migrations (Alembic) and a `db upgrade` command |
 | Customer demo with nickname entry, conversation history and attachments | Kubernetes/Helm deployment option |

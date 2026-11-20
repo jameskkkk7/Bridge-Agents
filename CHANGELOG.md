@@ -104,6 +104,9 @@ conversations, with a deterministic offline demo.
   accounts and workspaces, billing and invoices, refunds and cancellations,
   desktop sync, sign-in/SSO troubleshooting, API and webhooks, security and
   compliance, and support SLAs (10 documents, 64 indexed chunks).
+- **Settings cleanup:** the support prompt is no longer editable from the
+  configuration page. It remains the flow's `system` node and is edited in
+  the flow editor; the settings page is focused on model APIs and profiles.
 - **Saved API profiles:** Studio keeps multiple provider/key/model profiles,
   validates each one (model listing or a one-token chat probe), shows the
   validation state, and lets operators switch the system-wide active profile

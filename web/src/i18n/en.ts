@@ -217,13 +217,6 @@ export const en: Record<string, string> = {
   "settings.modelReset": "Model configuration reset to the environment defaults.",
   "settings.sourceRuntime": "runtime override",
   "settings.sourceEnvironment": "environment",
-  "settings.promptTitle": "Support prompt",
-  "settings.promptHelp":
-    "The role prompt is the system node of the flow. Saving updates the graph, recompiles it and activates it.",
-  "settings.promptSourceSaved": "saved graph",
-  "settings.promptSourceDefault": "built-in default",
-  "settings.savePrompt": "Save prompt",
-  "settings.promptSaved": "Prompt saved and the graph recompiled.",
 
   "flow.modeGraph": "Graph",
   "flow.modeJson": "JSON",

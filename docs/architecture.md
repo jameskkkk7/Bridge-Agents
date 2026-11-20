@@ -198,9 +198,11 @@ Studio → Settings exposes the two knobs an operator usually needs:
   rebuilds the pipeline so the next message uses the new model. The API key is
   encrypted with Fernet using a key derived from `JWT_SECRET`, is never returned
   by the API and is removed when the override is reset.
-* **Support prompt** — the prompt is the graph's `system` node, so the editor and
-  the Flow JSON cannot drift apart. Saving rewrites the system node, recompiles
-  the graph and activates it.
+* **Support prompt** — the prompt is the graph's `system` node. The Settings page
+  no longer exposes a separate prompt editor; operators edit it in the flow
+  editor (system node inspector), so the Flow JSON stays the single source of
+  truth. The `agent-prompt` API remains for programmatic use and recompiles the
+  graph when it writes the node.
 
 Both endpoints require a staff token (same tier as graph editing). In a stricter
 deployment the model endpoint could be restricted to `ADMIN`; the design note in
@@ -395,7 +397,7 @@ one bundle:
 |---|---|---|
 | `/` | Customer | Chat only: streaming replies, review-gate fallback, image upload, reconnect indicator; the shell has no staff navigation |
 | `/admin` | Staff | Support desk: live transcript over a staff websocket, takeover/release, a reply box that delivers to the customer, and close |
-| `/admin/studio` | Staff | Studio: edit the conversation flow on a drag-and-drop canvas (or JSON), save (compile-checked) or reset, manage the knowledge base, and configure the runtime model and support prompt |
+| `/admin/studio` | Staff | Studio: edit the conversation flow on a drag-and-drop canvas (or JSON), save (compile-checked) or reset, manage the knowledge base, and configure the runtime model/API profiles; edit the support prompt on the flow's system node |
 | `/graph` | — | Legacy URL, redirects to `/admin/studio` |
 | any | — | EN / 中文 switch in the top bar; the choice is stored per browser |
 

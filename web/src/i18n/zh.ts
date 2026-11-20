@@ -212,12 +212,6 @@ export const zh: Record<string, string> = {
   "settings.modelReset": "已恢复为环境变量默认的模型配置。",
   "settings.sourceRuntime": "运行时覆盖",
   "settings.sourceEnvironment": "环境变量",
-  "settings.promptTitle": "客服提示词",
-  "settings.promptHelp": "角色提示词就是流程图里的 system 节点；保存后会更新流程图、重新编译并生效。",
-  "settings.promptSourceSaved": "已保存的流程",
-  "settings.promptSourceDefault": "内置默认",
-  "settings.savePrompt": "保存提示词",
-  "settings.promptSaved": "提示词已保存，流程图已重新编译。",
 
   "flow.modeGraph": "图形",
   "flow.modeJson": "JSON",

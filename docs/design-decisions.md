@@ -251,13 +251,14 @@ manager over database encryption.
 
 ## 19. The support prompt is the graph's system node
 
-**Decision:** the prompt editor reads and writes the `system` node of the saved
-graph instead of storing a second copy.
+**Decision:** the support prompt lives in the `system` node of the saved graph.
+Settings does not provide a separate prompt editor; the flow editor edits the
+same node, and the `agent-prompt` API remains available for programmatic use.
 
-**Why:** two sources of truth would let the Flow JSON and the prompt editor
+**Why:** two sources of truth would let the Flow JSON and a prompt editor
 disagree, and the next save in either place would silently overwrite the other.
-Keeping one copy means "save prompt" recompiles and activates the same graph the
-Flow tab shows.
+Keeping one copy means editing the prompt recompiles and activates the same graph
+the Flow tab shows.
 
 **Cost:** editing the prompt creates a saved graph even if the deployment was
 running the built-in default (the response reports `saved_graph` so this is

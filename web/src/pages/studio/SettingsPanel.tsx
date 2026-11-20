@@ -12,7 +12,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SelectMenu from "@/components/ui/select-menu";
-import { Textarea } from "@/components/ui/textarea";
 import { deleteJson, errorText, getJson, postJson, putJson } from "@/api";
 import { useLanguage } from "@/i18n";
 import ModelPicker from "./ModelPicker";
@@ -31,11 +30,6 @@ interface ModelConfig {
   api_key_configured: boolean;
   api_key_source: "runtime" | "environment" | "none";
   source: "runtime" | "environment";
-}
-
-interface PromptView {
-  system_prompt: string;
-  source: "saved_graph" | "default_graph";
 }
 
 export default function SettingsPanel({
@@ -57,8 +51,6 @@ export default function SettingsPanel({
   const [thinking, setThinking] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [clearKey, setClearKey] = useState(false);
-  const [prompt, setPrompt] = useState("");
-  const [promptSource, setPromptSource] = useState<PromptView["source"]>("default_graph");
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [profiles, setProfiles] = useState<SavedApiList | null>(null);
@@ -81,14 +73,11 @@ export default function SettingsPanel({
   };
 
   const load = async () => {
-    const [modelConfig, promptView, profileList] = await Promise.all([
+    const [modelConfig, profileList] = await Promise.all([
       getJson<ModelConfig>("/admin/runtime-config/model-config", token),
-      getJson<PromptView>("/admin/runtime-config/agent-prompt", token),
       getJson<SavedApiList>("/admin/runtime-config/model-config/profiles", token),
     ]);
     applyConfig(modelConfig);
-    setPrompt(promptView.system_prompt);
-    setPromptSource(promptView.source);
     setProfiles(profileList);
     const active = profileList.profiles.find((item) => item.id === profileList.active_id);
     setProfileId(active?.id ?? null);
@@ -292,27 +281,6 @@ export default function SettingsPanel({
     }
   };
 
-  const savePrompt = async () => {
-    if (!prompt.trim()) return;
-    onError("");
-    setNotice("");
-    setBusy("prompt");
-    try {
-      const updated = await putJson<PromptView>(
-        "/admin/runtime-config/agent-prompt",
-        { system_prompt: prompt },
-        token,
-      );
-      setPrompt(updated.system_prompt);
-      setPromptSource(updated.source);
-      setNotice(t("settings.promptSaved"));
-    } catch (caught) {
-      onError(errorText(caught));
-    } finally {
-      setBusy("");
-    }
-  };
-
   const keyPlaceholder = editingKeyConfigured
     ? t("settings.apiKeyPlaceholderSet")
     : t("settings.apiKeyPlaceholderEmpty");
@@ -492,47 +460,16 @@ export default function SettingsPanel({
           </CardContent>
         </Card>
 
-        <div className="flex flex-col gap-3">
-          <SavedApisCard
-            data={profiles}
-            busy={busy}
-            onNew={resetProfileForm}
-            onSelect={applyProfile}
-            onActivate={(id) => void activateProfile(id)}
-            onValidate={(id) => void validateProfile(id)}
-            onDelete={(id) => void deleteProfile(id)}
-            onDeactivate={() => void useEnvironmentDefaults()}
-          />
-          <Card>
-            <CardHeader className="flex-row items-start justify-between gap-2">
-              <div>
-                <CardTitle>{t("settings.promptTitle")}</CardTitle>
-              <CardDescription className="mt-1">{t("settings.promptHelp")}</CardDescription>
-            </div>
-            <Badge variant={promptSource === "saved_graph" ? "accent" : "secondary"}>
-              {promptSource === "saved_graph"
-                ? t("settings.promptSourceSaved")
-                : t("settings.promptSourceDefault")}
-            </Badge>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <Textarea
-              spellCheck={false}
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              className="min-h-[280px] resize-y rounded-xl [field-sizing:fixed] leading-relaxed"
-            />
-            <div className="flex justify-end">
-              <Button
-                disabled={busy === "prompt" || !prompt.trim()}
-                onClick={() => void savePrompt()}
-              >
-                {t("settings.savePrompt")}
-              </Button>
-            </div>
-          </CardContent>
-          </Card>
-        </div>
+        <SavedApisCard
+          data={profiles}
+          busy={busy}
+          onNew={resetProfileForm}
+          onSelect={applyProfile}
+          onActivate={(id) => void activateProfile(id)}
+          onValidate={(id) => void validateProfile(id)}
+          onDelete={(id) => void deleteProfile(id)}
+          onDeactivate={() => void useEnvironmentDefaults()}
+        />
       </div>
     </div>
   );
