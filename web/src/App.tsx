@@ -103,7 +103,7 @@ export default function App() {
   if (staffView) {
     return (
       <div className="min-h-dvh pb-20">
-        <div className="sticky top-0 z-40 border-b border-border/60 bg-gradient-to-b from-background/95 via-background/85 to-background/70 backdrop-blur-xl backdrop-saturate-150">
+        <div className="sticky top-0 z-40 border-b border-border/60 bg-gradient-to-b from-background/95 via-background/85 to-background/70 backdrop-blur-2xl backdrop-saturate-150">
           <div className="mx-auto max-w-6xl px-3 pt-3 pb-2 sm:px-6">
             <header className="flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-card/75 px-3 py-2.5 shadow-sm sm:gap-3 sm:px-4">
           <button
@@ -159,7 +159,7 @@ export default function App() {
 
   return (
     <div className="min-h-dvh pb-16">
-      <div className="sticky top-0 z-40 border-b border-border/60 bg-gradient-to-b from-background/95 via-background/85 to-background/70 backdrop-blur-xl backdrop-saturate-150">
+      <div className="sticky top-0 z-40 border-b border-border/60 bg-gradient-to-b from-background/95 via-background/85 to-background/70 backdrop-blur-2xl backdrop-saturate-150">
         <div className="mx-auto max-w-6xl px-3 pt-3 pb-2 sm:px-6">
           <header className="flex items-center gap-2 rounded-xl border border-border/80 bg-card/75 px-3 py-2.5 shadow-sm sm:gap-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
