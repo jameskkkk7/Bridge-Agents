@@ -13,9 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SelectMenu from "@/components/ui/select-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { deleteJson, errorText, getJson, putJson } from "@/api";
+import { deleteJson, errorText, getJson, postJson, putJson } from "@/api";
 import { useLanguage } from "@/i18n";
 import ModelPicker from "./ModelPicker";
+import SavedApisCard, { type SavedApiList, type SavedApiProfile } from "./SavedApisCard";
 import { MODEL_PROVIDERS, providerPreset } from "./model-presets";
 
 interface ModelConfig {
@@ -60,6 +61,10 @@ export default function SettingsPanel({
   const [promptSource, setPromptSource] = useState<PromptView["source"]>("default_graph");
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
+  const [profiles, setProfiles] = useState<SavedApiList | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [editingKeyConfigured, setEditingKeyConfigured] = useState(false);
 
   const applyConfig = (value: ModelConfig) => {
     setConfig(value);
@@ -76,18 +81,62 @@ export default function SettingsPanel({
   };
 
   const load = async () => {
-    const [modelConfig, promptView] = await Promise.all([
+    const [modelConfig, promptView, profileList] = await Promise.all([
       getJson<ModelConfig>("/admin/runtime-config/model-config", token),
       getJson<PromptView>("/admin/runtime-config/agent-prompt", token),
+      getJson<SavedApiList>("/admin/runtime-config/model-config/profiles", token),
     ]);
     applyConfig(modelConfig);
     setPrompt(promptView.system_prompt);
     setPromptSource(promptView.source);
+    setProfiles(profileList);
+    const active = profileList.profiles.find((item) => item.id === profileList.active_id);
+    setProfileId(active?.id ?? null);
+    setProfileName(active?.name ?? "");
+    setEditingKeyConfigured(active?.api_key_configured ?? false);
+  };
+
+  const refreshProfiles = async () => {
+    setProfiles(
+      await getJson<SavedApiList>("/admin/runtime-config/model-config/profiles", token),
+    );
   };
 
   useEffect(() => {
     void load().catch((caught) => onError(errorText(caught)));
   }, [token]);
+
+  const applyProfile = (profile: SavedApiProfile) => {
+    setProfileId(profile.id);
+    setProfileName(profile.name);
+    setProvider(profile.provider);
+    setBaseUrl(profile.base_url);
+    setApiVersion(profile.api_version || "2024-10-21");
+    setModel(profile.model);
+    setTemperature(profile.temperature);
+    setTimeout(profile.timeout);
+    setMaxRetries(profile.max_retries);
+    setThinking(profile.thinking_enabled);
+    setEditingKeyConfigured(profile.api_key_configured);
+    setApiKey("");
+    setClearKey(false);
+  };
+
+  const resetProfileForm = () => {
+    setProfileId(null);
+    setProfileName("");
+    setProvider("openai");
+    setBaseUrl(providerPreset("openai")?.baseUrl ?? "");
+    setApiVersion("2024-10-21");
+    setModel("");
+    setTemperature(1);
+    setTimeout(60);
+    setMaxRetries(3);
+    setThinking(false);
+    setEditingKeyConfigured(false);
+    setApiKey("");
+    setClearKey(false);
+  };
 
   const chooseProvider = (id: string) => {
     setProvider(id);
@@ -99,32 +148,57 @@ export default function SettingsPanel({
   };
 
   const saveModel = async () => {
+    if (!profileName.trim()) {
+      onError(t("settings.profileNameRequired"));
+      return;
+    }
     if (!model.trim()) {
       onError(t("settings.modelRequired"));
+      return;
+    }
+    if (!profileId && !apiKey.trim()) {
+      onError(t("settings.profileKeyRequired"));
       return;
     }
     onError("");
     setNotice("");
     setBusy("model");
     try {
-      const updated = await putJson<ModelConfig>(
-        "/admin/runtime-config/model-config",
-        {
-          provider,
-          base_url: baseUrl,
-          model,
-          api_version: apiVersion,
-          temperature,
-          timeout,
-          max_retries: maxRetries,
-          thinking_enabled: thinking,
-          api_key: apiKey.trim() ? apiKey.trim() : null,
-          clear_api_key: clearKey,
-        },
-        token,
+      const body = {
+        name: profileName.trim(),
+        provider,
+        base_url: baseUrl,
+        model,
+        api_version: apiVersion,
+        temperature,
+        timeout,
+        max_retries: maxRetries,
+        thinking_enabled: thinking,
+        api_key: apiKey.trim() ? apiKey.trim() : null,
+        clear_api_key: clearKey,
+      };
+      const saved = profileId
+        ? await putJson<SavedApiProfile>(
+            `/admin/runtime-config/model-config/profiles/${profileId}`,
+            body,
+            token,
+          )
+        : await postJson<SavedApiProfile>(
+            "/admin/runtime-config/model-config/profiles",
+            body,
+            token,
+          );
+      setProfileId(saved.id);
+      setProfileName(saved.name);
+      setEditingKeyConfigured(saved.api_key_configured);
+      setApiKey("");
+      setClearKey(false);
+      await refreshProfiles();
+      setNotice(
+        saved.valid
+          ? t("settings.profileSaved")
+          : t("settings.profileSavedInvalid", { message: saved.validation_message }),
       );
-      applyConfig(updated);
-      setNotice(t("settings.modelSaved"));
     } catch (caught) {
       onError(errorText(caught));
     } finally {
@@ -132,14 +206,85 @@ export default function SettingsPanel({
     }
   };
 
-  const resetModel = async () => {
+  const useEnvironmentDefaults = async () => {
     onError("");
     setNotice("");
-    setBusy("model");
+    setBusy("profile:deactivate");
     try {
-      const reset = await deleteJson<ModelConfig>("/admin/runtime-config/model-config", token);
-      applyConfig(reset);
-      setNotice(t("settings.modelReset"));
+      await postJson<SavedApiList>(
+        "/admin/runtime-config/model-config/profiles/deactivate",
+        {},
+        token,
+      );
+      await load();
+      setNotice(t("settings.environmentActivated"));
+    } catch (caught) {
+      onError(errorText(caught));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const activateProfile = async (id: string) => {
+    onError("");
+    setNotice("");
+    setBusy(`profile:${id}`);
+    try {
+      await postJson<SavedApiProfile>(
+        `/admin/runtime-config/model-config/profiles/${id}/activate`,
+        {},
+        token,
+      );
+      await load();
+      setNotice(t("settings.profileActivated"));
+    } catch (caught) {
+      onError(errorText(caught));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const validateProfile = async (id: string) => {
+    onError("");
+    setNotice("");
+    setBusy(`profile:validate:${id}`);
+    try {
+      const result = await postJson<SavedApiProfile>(
+        `/admin/runtime-config/model-config/profiles/${id}/validate`,
+        {},
+        token,
+      );
+      await refreshProfiles();
+      setNotice(
+        result.valid
+          ? t("settings.profileValidated")
+          : t("settings.profileInvalidAfterCheck", { message: result.validation_message }),
+      );
+    } catch (caught) {
+      onError(errorText(caught));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const deleteProfile = async (id: string) => {
+    if (!window.confirm(t("settings.deleteApiConfirm"))) return;
+    onError("");
+    setNotice("");
+    setBusy(`profile:delete:${id}`);
+    try {
+      const wasActive = profiles?.active_id === id;
+      await deleteJson<SavedApiList>(
+        `/admin/runtime-config/model-config/profiles/${id}`,
+        token,
+      );
+      if (wasActive) {
+        await load();
+      } else {
+        await refreshProfiles();
+      }
+      if (profileId === id) resetProfileForm();
+      setNotice(t("settings.profileDeleted"));
     } catch (caught) {
       onError(errorText(caught));
     } finally {
@@ -168,10 +313,9 @@ export default function SettingsPanel({
     }
   };
 
-  const keyPlaceholder =
-    config?.api_key_configured && config.api_key_source === "runtime"
-      ? t("settings.apiKeyPlaceholderSet")
-      : t("settings.apiKeyPlaceholderEmpty");
+  const keyPlaceholder = editingKeyConfigured
+    ? t("settings.apiKeyPlaceholderSet")
+    : t("settings.apiKeyPlaceholderEmpty");
 
   return (
     <div className="flex flex-col gap-3">
@@ -196,6 +340,15 @@ export default function SettingsPanel({
             )}
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="profile-name">{t("settings.profileName")}</Label>
+              <Input
+                id="profile-name"
+                value={profileName}
+                placeholder={t("settings.profileNamePlaceholder")}
+                onChange={(event) => setProfileName(event.target.value)}
+              />
+            </div>
             <div className="grid gap-1.5">
               <Label htmlFor="model-provider">{t("settings.provider")}</Label>
               <SelectMenu
@@ -259,7 +412,7 @@ export default function SettingsPanel({
                 onChange={(event) => setApiKey(event.target.value)}
               />
               <span className="text-xs text-muted-foreground">
-                {config?.api_key_source === "runtime"
+                {editingKeyConfigured
                   ? t("settings.keySourceRuntime")
                   : config?.api_key_source === "environment"
                     ? t("settings.keySourceEnvironment")
@@ -267,7 +420,7 @@ export default function SettingsPanel({
                 {" · "}
                 {t("settings.keyEncryptedHint")}
               </span>
-              {config?.api_key_source === "runtime" && (
+              {editingKeyConfigured && (
                 <Label className="mt-1 gap-2 text-xs text-muted-foreground">
                   <input
                     type="checkbox"
@@ -325,20 +478,35 @@ export default function SettingsPanel({
               {t("settings.thinking")}
             </Label>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" disabled={busy === "model"} onClick={() => void resetModel()}>
-                {t("settings.resetModel")}
+              <Button
+                variant="outline"
+                disabled={busy !== ""}
+                onClick={() => void useEnvironmentDefaults()}
+              >
+                {t("settings.useEnvironment")}
               </Button>
-              <Button disabled={busy === "model"} onClick={() => void saveModel()}>
-                {t("settings.saveModel")}
+              <Button disabled={busy !== ""} onClick={() => void saveModel()}>
+                {t("settings.saveAndValidate")}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex-row items-start justify-between gap-2">
-            <div>
-              <CardTitle>{t("settings.promptTitle")}</CardTitle>
+        <div className="flex flex-col gap-3">
+          <SavedApisCard
+            data={profiles}
+            busy={busy}
+            onNew={resetProfileForm}
+            onSelect={applyProfile}
+            onActivate={(id) => void activateProfile(id)}
+            onValidate={(id) => void validateProfile(id)}
+            onDelete={(id) => void deleteProfile(id)}
+            onDeactivate={() => void useEnvironmentDefaults()}
+          />
+          <Card>
+            <CardHeader className="flex-row items-start justify-between gap-2">
+              <div>
+                <CardTitle>{t("settings.promptTitle")}</CardTitle>
               <CardDescription className="mt-1">{t("settings.promptHelp")}</CardDescription>
             </div>
             <Badge variant={promptSource === "saved_graph" ? "accent" : "secondary"}>
@@ -363,7 +531,8 @@ export default function SettingsPanel({
               </Button>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
     </div>
   );

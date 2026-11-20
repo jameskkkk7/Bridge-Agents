@@ -24,6 +24,9 @@ from app.schemas.runtime_settings import (
     ModelCatalogResponse,
     ModelConfigUpdate,
     ModelConfigView,
+    ModelProfileList,
+    ModelProfileUpsert,
+    ModelProfileView,
 )
 from app.services.agent_prompt_service import (
     current_graph,
@@ -37,6 +40,14 @@ from app.services.model_config_service import (
     load_override,
     resolve_settings,
     save_override,
+)
+from app.services.model_profiles_service import (
+    activate_profile,
+    deactivate_profile,
+    delete_profile,
+    list_profiles,
+    save_profile,
+    validate_profile,
 )
 from app.services.runtime_config_service import RuntimeConfigService
 
@@ -122,6 +133,89 @@ async def read_model_config(
     settings = request.app.state.settings
     override = await load_override(db, settings)
     return ModelConfigView(**describe(settings, override))
+
+
+@router.get("/model-config/profiles", response_model=ModelProfileList)
+async def read_model_profiles(
+    _: User = Depends(require_agent), db: AsyncSession = Depends(get_db)
+) -> ModelProfileList:
+    """List saved API profiles (secrets excluded) and the active id."""
+    return ModelProfileList(**await list_profiles(db))
+
+
+@router.post("/model-config/profiles", response_model=ModelProfileView, status_code=201)
+async def create_model_profile(
+    payload: ModelProfileUpsert,
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelProfileView:
+    """Save and validate a new API profile; activation is a separate step."""
+    profile = await save_profile(db, request.app.state.settings, payload)
+    return ModelProfileView(**profile)
+
+
+@router.put("/model-config/profiles/{profile_id}", response_model=ModelProfileView)
+async def update_model_profile(
+    profile_id: str,
+    payload: ModelProfileUpsert,
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelProfileView:
+    """Update a saved profile and re-run validation."""
+    profile = await save_profile(db, request.app.state.settings, payload, profile_id=profile_id)
+    return ModelProfileView(**profile)
+
+
+@router.delete("/model-config/profiles/{profile_id}", response_model=ModelProfileList)
+async def remove_model_profile(
+    profile_id: str,
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelProfileList:
+    """Delete a profile and refresh the effective pipeline when it was active."""
+    await delete_profile(db, request.app.state.settings, profile_id)
+    await reinitialize_pipeline(request.app)
+    return ModelProfileList(**await list_profiles(db))
+
+
+@router.post("/model-config/profiles/deactivate", response_model=ModelProfileList)
+async def deactivate_model_profile(
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelProfileList:
+    """Return to the environment model configuration."""
+    await deactivate_profile(db)
+    await reinitialize_pipeline(request.app)
+    return ModelProfileList(**await list_profiles(db))
+
+
+@router.post("/model-config/profiles/{profile_id}/validate", response_model=ModelProfileView)
+async def validate_model_profile(
+    profile_id: str,
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelProfileView:
+    """Re-run the validation probe for one profile."""
+    profile = await validate_profile(db, request.app.state.settings, profile_id)
+    return ModelProfileView(**profile)
+
+
+@router.post("/model-config/profiles/{profile_id}/activate", response_model=ModelProfileView)
+async def activate_model_profile(
+    profile_id: str,
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelProfileView:
+    """Switch the whole system to one validated API profile."""
+    profile = await activate_profile(db, request.app.state.settings, profile_id)
+    await reinitialize_pipeline(request.app)
+    return ModelProfileView(**profile)
 
 
 @router.post("/model-config/models", response_model=ModelCatalogResponse)

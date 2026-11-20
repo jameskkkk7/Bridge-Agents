@@ -132,6 +132,49 @@ class ModelCatalogRequest(BaseModel):
         return value.strip()
 
 
+class ModelProfileUpsert(ModelConfigUpdate):
+    """Create or update a saved API profile (validated like a model update)."""
+
+    name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("name must not be empty")
+        return cleaned
+
+
+class ModelProfileView(BaseModel):
+    """A saved API profile shown in Studio; the API key is never included."""
+
+    id: str
+    name: str
+    provider: str
+    base_url: str
+    model: str
+    api_version: str
+    temperature: float
+    timeout: int
+    max_retries: int
+    thinking_enabled: bool
+    api_key_configured: bool
+    valid: bool
+    validation_message: str = ""
+    validated_at: str | None = None
+    created_at: str = ""
+    updated_at: str = ""
+    active: bool = False
+
+
+class ModelProfileList(BaseModel):
+    """All saved profiles plus the id of the active one (None = environment)."""
+
+    active_id: str | None = None
+    profiles: list[ModelProfileView] = Field(default_factory=list)
+
+
 class ModelCatalogResponse(BaseModel):
     """Models discovered from the provider, never including the API key."""
 

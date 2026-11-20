@@ -126,8 +126,9 @@ restart.
 - **Model** — pick a provider preset (OpenAI, Azure OpenAI and 13 more) and an
   endpoint; the available models are fetched from the provider and shown as a
   dropdown (Azure lists deployments). Preset endpoints are verified against the
-  vendors' docs in [docs/providers.md](docs/providers.md). The API key is stored
-  encrypted and never returned by the API.
+  vendors' docs in [docs/providers.md](docs/providers.md). Save several validated
+  API profiles and choose which one the whole system uses from the list on the
+  right; API keys are stored encrypted and never returned.
 - **Support prompt** — edit the agent's system prompt in the same place.
 - **Moderation** — enable provider moderation per sanitize node, choose the
   vendor, fallback text and fail-open/fail-closed policy.
@@ -363,13 +364,13 @@ not an acceptable answer.
 | Review gate with buffered streaming, retries, fallbacks and takeover | Immutable audit log, flow version history, approvals and rollback |
 | Local hard gate + 5 provider moderation adapters with fail policy and chunking | Browser OIDC login flow (JWKS/RS256 verification already works) |
 | Visual flow editor with validation, node inspector, auto layout and JSON fallback | Declarative HTTP/OpenAPI tools so operators can wire more systems without Python |
-| Studio: knowledge upload/reindex, model provider presets, prompt editor | PyPI publishing, container images and release automation |
+| Studio: knowledge upload/reindex and full-text preview, saved and validated API profiles with active selection, prompt editor | PyPI publishing, container images and release automation |
 | RAG with citations; 15 model provider presets including Azure OpenAI | Slack adapter, generic webhook API and an embeddable widget |
 | Support desk with takeover, AI/human labels and image transcript | Database migrations (Alembic) and a `db upgrade` command |
 | Customer demo with nickname entry, conversation history and attachments | Kubernetes/Helm deployment option |
 | Lark channel, bilingual/responsive UI, light/dark themes | — |
 | Packaging, CLI, TOML configuration, static GUI release, systemd/nginx templates | — |
-| 326 offline tests, 91% coverage, ruff and sanitisation gates | — |
+| 336 offline tests, 91% coverage, ruff and sanitisation gates | — |
 
 ## FAQ
 

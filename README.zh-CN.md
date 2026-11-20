@@ -104,7 +104,7 @@ flowchart LR
 ### Studio 覆盖运营的其余工作
 
 - **知识** — 上传文档、重建索引、搜索预览；也可以把 `DOCS_DIR` 指向已有的文档目录。
-- **模型** — 选择厂商预设（OpenAI、Azure OpenAI 等 15 个）与 Endpoint；填写 API Key 后自动从服务商获取可用模型并以下拉框选择（Azure 列出部署）。预设地址已按厂商官方文档核对，见 [docs/providers.md](docs/providers.md)。API Key 加密存储，接口不回显。
+- **模型** — 选择厂商预设（OpenAI、Azure OpenAI 等 15 个）与 Endpoint；填写 API Key 后自动从服务商获取可用模型并以下拉框选择（Azure 列出部署）。预设地址已按厂商官方文档核对，见 [docs/providers.md](docs/providers.md)。可保存多套已验证的 API 配置，并在右侧列表选择整个系统当前使用哪一套；API Key 加密存储，接口不回显。
 - **客服提示词** — 在同一个地方编辑助手系统提示词。
 - **内容安全** — 在 sanitize 节点启用第三方审核，选择厂商、兜底文案与 fail-open / fail-closed 策略。
 - **角色与语言** — 客服与管理员可编辑，客户只能对话；界面中英双语、明暗主题、移动端自适应。
@@ -287,13 +287,13 @@ app.mount("/bridge-agents", create_app())
 | 带缓冲流式、重试、兜底与接管的审核门禁 | 不可篡改审计日志、流程版本历史、审批与回滚 |
 | 本地硬门 + 5 家第三方审核适配器（含失败策略与分片） | 浏览器 OIDC 登录流程（JWKS/RS256 校验已具备） |
 | 可视化流程编辑器：保存前校验、节点面板、自动布局、JSON 回退 | 声明式 HTTP/OpenAPI 工具，让运营不写 Python 也能接入更多系统 |
-| Studio：知识上传/重建索引、模型厂商预设、提示词编辑 | PyPI 发布、容器镜像与发布自动化 |
+| Studio：知识上传/重建索引与全文预览、已保存并验证的 API 配置及当前启用选择、提示词编辑 | PyPI 发布、容器镜像与发布自动化 |
 | 带引用的 RAG；15 个模型厂商预设（含 Azure OpenAI） | Slack 适配器、通用 Webhook API 与可嵌入组件 |
 | 客服台：接管、AI/真人标注、图片记录 | 数据库迁移（Alembic）与 `db upgrade` 命令 |
 | 客户演示：昵称进入、多会话记录、附件 | Kubernetes/Helm 部署选项 |
 | 飞书渠道、中英双语、响应式、明暗主题 | — |
 | 打包、CLI、TOML 配置、静态 GUI 发布、systemd/nginx 模板 | — |
-| 326 项离线测试、91% 覆盖率、ruff 与内容清洗门禁 | — |
+| 336 项离线测试、91% 覆盖率、ruff 与内容清洗门禁 | — |
 
 ## 常见问题
 

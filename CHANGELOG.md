@@ -101,6 +101,11 @@ conversations, with a deterministic offline demo.
   accounts and workspaces, billing and invoices, refunds and cancellations,
   desktop sync, sign-in/SSO troubleshooting, API and webhooks, security and
   compliance, and support SLAs (10 documents, 64 indexed chunks).
+- **Saved API profiles:** Studio keeps multiple provider/key/model profiles,
+  validates each one (model listing or a one-token chat probe), shows the
+  validation state, and lets operators switch the system-wide active profile
+  from a list on the right. Invalid profiles cannot be activated; keys stay
+  encrypted and are never returned.
 - **Provider addresses:** every Studio provider preset was re-checked against
   the vendors' current official documentation (DeepSeek base URL without /v1,
   MiniMax's api.minimax.cn domain, Anthropic's official OpenAI SDK compatibility
@@ -118,7 +123,7 @@ conversations, with a deterministic offline demo.
   release workflow (wheels, static GUI archive, GHCR server/web images and a
   GitHub Release) and a manual PyPI trusted-publishing workflow, documented
   in `docs/releasing.md`.
-- **Quality:** 326 offline tests, 91% combined line coverage of `app/core` and
+- **Quality:** 336 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
 
