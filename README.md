@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="docs/assets/banner.svg" alt="Bridge-Agents — self-hosted agent runtime for customer conversations" width="100%" />
+<img src="docs/assets/banner.svg" alt="Bridge-Agents — visual AI workflows grounded in your documentation" width="100%" />
 
 # Bridge-Agents
 
-**A control plane for AI customer conversations.**
+**Visual AI workflows for customer support, grounded in your documentation.**
 
-<sub>Operators shape the flow. The runtime reviews every reply before a customer sees it.<br />Your existing enterprise systems stay the source of truth.</sub>
+<sub>Design the conversation flow on a drag-and-drop canvas, ground every answer in your own knowledge base with citations,<br />and connect the workflow to the enterprise systems you already run.</sub>
 
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="Apache-2.0" />
 <img src="https://img.shields.io/badge/self--hosted-yes-2ea043?style=for-the-badge" alt="Self-hosted" />
@@ -17,48 +17,49 @@
 
 <br /><br />
 
-[Design](#design-in-one-page) · [Architecture](#architecture) · [Customize](#pillar-1--operators-customize-the-flow) · [Review](#pillar-2--every-reply-passes-review) · [Integrate](#pillar-3--integrate-with-the-enterprise-stack) · [Quick start](#quick-start) · [Deploy](#configuration-and-deployment) · [FAQ](#faq) · [Roadmap](#status-and-roadmap)
+[Design](#design-in-one-page) · [Architecture](#architecture) · [Workflow](#pillar-1--design-the-workflow-visually) · [RAG](#pillar-2--ground-answers-in-your-documentation) · [Integrate](#pillar-3--integrate-with-the-enterprise-stack) · [Quick start](#quick-start) · [Deploy](#configuration-and-deployment) · [FAQ](#faq) · [Roadmap](#status-and-roadmap)
 
 </div>
 
 ## The problem
 
-Enterprises do not lack AI models. They lack a place to **put AI into a customer
-conversation safely**, where three groups of people can work together:
+Enterprises do not lack AI models. They lack a way to **shape the customer
+conversation without writing code** and to **ground answers in their own
+documentation**. Three groups of people need to work together:
 
-- **Operations staff** need to change what the assistant does — routing,
-  knowledge, tone, escalation — without filing a software ticket.
-- **Reviewers and support leads** need to know that no reply reaches a customer
-  before it has been checked, and need a fast path to take over.
-- **IT and platform teams** need the AI to sit next to the systems they already
-  run (identity provider, CRM, order system, ticketing, documentation) instead of
-  replacing them.
+- **Operations staff** need to design and change the workflow — routing, knowledge,
+  tone, escalation — without filing a software ticket.
+- **Support teams** need answers that cite the company's own documentation instead
+  of inventing policy or relying on a generic model.
+- **IT and platform teams** need the workflow to sit next to the systems they
+  already run (identity provider, CRM, order system, ticketing, documentation)
+  instead of replacing them.
 
-Bridge-Agents is designed around exactly those three requirements. The rest of
-this README explains each one and how it is implemented.
+Bridge-Agents is built around two product pillars — a visual workflow editor and
+first-class retrieval — plus the integrations that put them to work.
 
 ## Design in one page
 
-| 🧩 **Operators customize** | 🛡 **The runtime reviews** | 🔌 **It integrates, not replaces** |
+| 🧩 **Visual workflows** | 📚 **RAG by default** | 🔌 **It integrates, not replaces** |
 |---|---|---|
-| The conversation flow is saved data, not code. Business users rewire it on a visual canvas; a flow that cannot compile is rejected before it goes live. Model, knowledge and moderation settings are forms in the Studio; the support prompt is the flow's `system` node. Changes apply to the next message. | Every customer-visible reply passes layered checks: a deterministic hard gate, optional third-party moderation, an LLM reviewer, and human takeover. Text is buffered until the gate decides; a rejected draft is replaced by a safe fallback and never streamed. | Identity comes from your IdP, answers from your documentation, actions through your system APIs, data in your database, and the GUI is static files behind your nginx. Self-hosted, SQLite by default, no vendor lock-in. |
+| The conversation flow is saved data, not code. Operators drag nodes onto a canvas, connect them, and configure them in plain-language forms; a flow that cannot compile is rejected before it goes live. Saving hot-swaps the new workflow into the runtime — no redeploy. | Documentation is a first-class part of the product: upload support articles or point at an existing docs folder, retrieve heading-aware chunks with hybrid search, and let the agent answer with `[1]`, `[2]` citations. The demo ships 10 indexed articles so it works offline. | Identity comes from your IdP, actions go through your system APIs, data lives in your database, and the GUI is static files behind your nginx. Self-hosted, SQLite by default, no vendor lock-in. |
 
 ## Architecture
 
-<img src="docs/assets/architecture.svg" alt="Bridge-Agents architecture: channels connect to the runtime, which integrates with existing enterprise systems" width="100%" />
+<img src="docs/assets/architecture.svg" alt="Bridge-Agents architecture: channels connect to the runtime, whose visual flow and knowledge base integrate with existing enterprise systems" width="100%" />
 
 The product is deliberately split into four planes:
 
-- **Control plane** — the editable graph (including the support prompt), model and moderation settings.
-  Owned by operators, validated on save, hot-swapped into the runtime.
-- **Data plane** — retrieval, model calls, tools and channel delivery
+- **Control plane** — the visual graph, node settings and the support prompt,
+  owned by operators, validated on save and hot-swapped into the runtime.
+- **Knowledge plane** — document ingestion, heading-aware chunking, the hybrid
+  index, the retrieval node and citation rendering.
+- **Delivery plane** — model calls, tools, channels and the support desk
   ([`packages/bridge_agents`](packages/bridge_agents)).
-- **Safety plane** — the review node, banned words, provider moderation and human
-  takeover, applied before the customer sees a reply.
-- **Integration plane** — identity, tools, knowledge, database and static GUI
-  deployment, so the product fits an existing stack.
+- **Integration plane** — identity, tools, database and static GUI deployment, so
+  the product fits an existing stack.
 
-## Pillar 1 — Operators customize the flow
+## Pillar 1 — Design the workflow visually
 
 The starting point is that **a flow is configuration, not a deploy**. Operators
 work in the Studio (`/admin/studio`), not in the codebase.
@@ -75,8 +76,8 @@ the runtime compiles.
 | `agent` | Generate the customer-facing reply |
 | `tools` | Let the agent call registered system tools |
 | `custom` | Add an extra model step (translation, classification, rewrite) |
-| `sanitize` | Mask banned words and optionally run provider moderation |
-| `review` | Gate the reply: accept, retry, fallback or pass through |
+| `sanitize` | Optional guardrail: mask banned words or run provider moderation |
+| `review` | Optional guardrail: review, retry or rewrite before delivery |
 | `start` / `end` | Entry and exit |
 
 Operators add nodes from a palette, connect them (including condition handles
@@ -84,10 +85,9 @@ such as `respond`, `tool_call`, `pass`, `block`), drag/auto-layout them and edit
 fields in a plain-language inspector. Advanced users get a JSON editor for the
 same configuration.
 
-**Safety by construction:** the graph is compiled and validated before it is
-saved. A broken reference, missing agent role or unroutable edge is rejected —
-the previous flow keeps running. Saving hot-swaps the new graph; no redeploy, no
-restart.
+**Validated by construction:** the graph is compiled before it is saved. A broken
+reference, missing agent role or unroutable edge is rejected — the previous flow
+keeps running. Saving hot-swaps the new graph; no redeploy, no restart.
 
 ### Studio covers the rest of the operator job
 
@@ -101,11 +101,12 @@ restart.
   right; API keys are stored encrypted and never returned.
 - **Support prompt** — the support prompt is the flow's `system` node, edited in the
   flow editor (not in Settings); the Settings page only manages model APIs.
-- **Moderation** — enable provider moderation per sanitize node, choose the
-  vendor, fallback text and fail-open/fail-closed policy.
 - **Roles and language** — support staff and admins edit; customers only chat.
   The whole Studio and customer UI ship in English and 简体中文, light/dark, and
   responsive layouts.
+
+Optional `sanitize` / `review` guardrail nodes are available on the canvas when a
+deployment wants extra checks; they are not required by the default flow.
 
 ### What still needs a developer (today)
 
@@ -115,37 +116,43 @@ configure them in the flow. Making those integrations declarative
 (OpenAPI/HTTP tool definitions, custom nodes as plugins) is on the roadmap, so
 more of the integration work can move from IT to operations.
 
-## Pillar 2 — Every reply passes review
+## Pillar 2 — Ground answers in your documentation
 
-"Review" is not a prompt instruction; it is a stage in the runtime with its own
-contract, buffering and failure policy.
+Retrieval is a first-class part of the product, not an add-on. Upload support
+articles, point `DOCS_DIR` at an existing documentation folder, and the
+`retrieval` node feeds cited passages into the agent.
 
-<img src="docs/assets/review-gate.svg" alt="Review gate: an assistant draft passes the local hard gate, provider moderation and LLM reviewer; approved replies stream to the customer, blocked drafts retry or fall back" width="100%" />
+<img src="docs/assets/rag-flow.svg" alt="RAG pipeline: documentation is split into heading-aware chunks, indexed with vectors and keywords, retrieved by the retrieval node and passed to the agent with citations" width="100%" />
 
-### Layered controls
+### Knowledge in the Studio
 
-| Layer | Mechanism | Behaviour |
-|---|---|---|
-| Local hard gate | `sanitize` masks configured words in every message | Deterministic, free, always on; cannot be disabled by an outage |
-| Provider moderation | OpenAI-compatible, Azure AI Content Safety, Google Perspective, Alibaba Cloud, Tencent Cloud | Optional; fail-open by default or fail-closed per node; long replies are split at provider limits and results aggregated |
-| LLM reviewer | `review` node judges the latest draft against its policy prompt | Accept, bounded retry, safe fallback or pass-through; reviewer reasoning is never sent to the customer |
-| Human takeover | Support desk "take over" | Cancels the pending AI reply; a teammate answers and the transcript marks AI vs human messages |
+- **Upload and edit** — add Markdown/text files, reindex, search-preview the index,
+  open any document's full text and delete stale articles.
+- **Heading-aware chunks** — 900-character chunks with 120-character overlap;
+  headings stay with their section so citations are readable.
+- **Hybrid retrieval** — vector similarity (60%) plus lexical matching (40%);
+  `RAG_TOP_K` and `RAG_MIN_SCORE` are configurable per deployment and per
+  `retrieval` node.
+- **Citations** — retrieved passages are passed with citation markers; the shipped
+  prompt asks the agent to cite `[1]`, `[2]` and to say when the docs do not cover
+  a question.
+- **Embeddings** — deterministic offline hash embedder by default; set
+  `RAG_EMBEDDER=openai` to use any `/v1/embeddings` endpoint.
 
-Everything is configurable from the Studio: the reviewer prompt, retry budget,
-fallback text, banned words, moderation vendor, thresholds and fail policy. The
-defaults are safe: rejected drafts are replaced, not silently dropped, and the
-retry count is bounded.
+### Retrieval in the workflow
 
-### What the design guarantees — and what it does not (yet)
+- Drag the `retrieval` node before the `agent` node (or wherever it makes sense)
+  and configure top-k / score threshold in the inspector.
+- The node retrieves passages for the latest customer message and injects them
+  into the model context; citations survive into the reply.
+- Prefer a tool? The bundled `search_docs` tool exposes the same index to the
+  agent.
 
-- **Guaranteed:** buffered streaming while a gate node is active, so a rejected
-  draft is never sent first; reviewer output and provider keys are not exposed to
-  customers; every stored message records whether it came from a customer, the AI
-  or a human; the runtime keeps working if the moderation provider fails, according
-  to the configured policy.
-- **Not yet:** a dedicated immutable audit log/export, flow version history with
-  approvals and one-click rollback, and reviewer decision dashboards. The message
-  store and labels are the foundation; the audit/approval workflow is next.
+### Demo knowledge base
+
+The demo ships with 10 fictional support articles (accounts, billing, refunds,
+desktop sync, sign-in/SSO, API/webhooks, security, SLAs) — 64 indexed chunks — so
+the retrieval path works offline without uploading anything.
 
 ## Pillar 3 — Integrate with the enterprise stack
 
@@ -180,19 +187,16 @@ replacement for them.
 
 ## One story, three pillars
 
-1. An operator opens Studio, adds a `tools` node so the agent can look up order
-   status, moves the `review` node after the new step, and saves. The graph is
-   validated and hot-swapped — no deploy. *(Customize)*
-2. A customer asks a question. Retrieval finds the policy passage, the agent
-   drafts a cited answer, the local gate and the LLM reviewer check it, and only
-   then is the answer streamed. *(Review)*
-3. The customer asks for a refund guarantee the policy does not cover. The
-   reviewer blocks the draft and the configured fallback is sent; the transcript
-   records what happened. A teammate takes over and the AI stops. *(Review +
-   human control)*
-4. The order lookup itself is a call into the existing order system; identity
-   comes from the company IdP; conversations are stored in the company database;
-   the GUI is served by the company nginx. *(Integrate)*
+1. An operator opens Studio, drags a `retrieval` node before the agent, uploads
+   the support docs and saves. The graph is validated and hot-swapped — no deploy.
+   *(Workflow)*
+2. A customer asks *"How do I activate Widget Pro?"* Retrieval returns the
+   activation passage and the agent answers with a `[1]` citation. *(RAG)*
+3. The customer asks for order status. The `tools` node calls the existing order
+   system and the answer combines the tool result with the policy citation.
+   *(Workflow + integration)*
+4. Identity comes from the company IdP, conversations are stored in the company
+   database, and the GUI is served by the company nginx. *(Integrate)*
 
 ## Quick start
 
@@ -273,7 +277,7 @@ versioned web archive.
 
 Two Python distributions plus the static GUI:
 
-- **`bridge-agents`** — review-gated pipeline, graph validation, retrieval, auth
+- **`bridge-agents`** — workflow pipeline, graph validation, retrieval, auth
   verifiers, moderation adapters, injection guard, rate limiter, embeddable
   `AgentRuntime` and testing fakes.
 - **`bridge-agents-server`** — FastAPI app, database models and CLI. Extras:
@@ -305,8 +309,8 @@ doubles. Details: [packages/bridge_agents/README.md](packages/bridge_agents/READ
 
 | | Bridge-Agents | Typical low-code bot builders |
 |---|---|---|
-| Review is a runtime stage, not a prompt hint | ✅ buffered gate with fallbacks and retries | moderation often after generation |
-| Operators change the flow without code | ✅ validated visual graph, hot-swapped | yes, but often without a safety gate |
+| Visual workflow editing | ✅ validated drag-and-drop graph, hot-swapped | yes, but often closed and code-bound |
+| Grounded answers with citations | ✅ built-in RAG with upload/reindex and citations | usually an add-on or prompt-only |
 | Fits an enterprise stack | ✅ IdP, system tools, existing docs, database, own nginx | often a closed SaaS platform |
 | Human handoff stops the AI | ✅ takeover cancels the pending reply | depends on the product |
 | Self-hosted and embeddable | ✅ pip packages + static GUI + one-command demo | usually not |
@@ -321,11 +325,11 @@ not an acceptable answer.
 
 | Shipped | Next |
 |---|---|
-| Review gate with buffered streaming, retries, fallbacks and takeover | Immutable audit log, flow version history, approvals and rollback |
-| Local hard gate + 5 provider moderation adapters with fail policy and chunking | Browser OIDC login flow (JWKS/RS256 verification already works) |
-| Visual flow editor with validation, node inspector, auto layout and JSON fallback | Declarative HTTP/OpenAPI tools so operators can wire more systems without Python |
-| Studio: knowledge upload/reindex and full-text preview, saved and validated API profiles with active selection | PyPI publishing, container images and release automation |
-| RAG with citations; 15 model provider presets including Azure OpenAI | Slack adapter, generic webhook API and an embeddable widget |
+| Visual flow editor with validation, node inspector, auto layout and JSON fallback | Flow version history and approvals |
+| RAG: heading-aware chunks, hybrid retrieval, citations, upload/reindex and full-text preview | Declarative HTTP/OpenAPI tools so operators can wire more systems without Python |
+| Studio: knowledge panel, 15 model provider presets, saved and validated API profiles | Browser OIDC login flow (JWKS/RS256 verification already works) |
+| Customer demo with nickname entry, conversation history, attachments and streaming | PyPI publishing, container images and release automation |
+| Support desk with takeover, AI/human labels and image transcript | Slack adapter, generic webhook API and an embeddable widget |
 | Support desk with takeover, AI/human labels and image transcript | Database migrations (Alembic) and a `db upgrade` command |
 | Customer demo with nickname entry, conversation history and attachments | Kubernetes/Helm deployment option |
 | Lark channel, bilingual/responsive UI, light/dark themes | — |
@@ -335,15 +339,21 @@ not an acceptable answer.
 ## FAQ
 
 **Can a non-programmer really change the AI flow?**
-Yes for the conversation behaviour: routing, prompt, knowledge, moderation,
-fallback and escalation are editable in Studio, validated on save and applied
-without redeploying. New *integrations* (a new system API connector, a custom node
-kind) currently need a small Python extension; declarative HTTP tools are next.
+Yes for the conversation behaviour: routing, prompt, knowledge, tools, model
+APIs and escalation are editable in Studio, validated on save and applied without
+redeploying. New *integrations* (a new system API connector, a custom node kind)
+currently need a small Python extension; declarative HTTP tools are next.
 
-**How do I know what the AI will say before a customer sees it?**
-The `review` node buffers the draft, checks it with a policy prompt and (optionally)
-provider moderation, and either releases it, retries, or sends the configured
-fallback. Human takeover can stop the AI mid-conversation.
+**How are answers grounded in my documentation?**
+Upload Markdown/text files in Studio or point `DOCS_DIR` at an existing folder.
+The `retrieval` node uses heading-aware chunks and hybrid search, and the answer
+cites the passages it used as `[1]`, `[2]`. Reindex from Studio after changing the
+documents; the demo works offline with 10 seeded articles.
+
+**Can I add guardrails?**
+Yes, optionally: the canvas includes `sanitize` and `review` nodes for banned
+words, provider moderation or an LLM policy check. They are not required by the
+default flow.
 
 **Does it need a specific model vendor?**
 No. Any OpenAI-compatible endpoint works; Azure OpenAI has a native client and 13
@@ -373,9 +383,9 @@ settings).
 
 No credentials or customer data are shipped with the repository. The demo login
 is disabled in production, roles are separated, provider keys stay in the
-environment (or encrypted runtime settings), graph changes are validated before
-activation, moderation keys are vendor-scoped, and provider URLs can be restricted
-with an allow-list. See [SECURITY.md](SECURITY.md) for reporting.
+environment (or encrypted runtime settings), workflow changes are validated before
+activation, and provider URLs can be restricted with an allow-list. See
+[SECURITY.md](SECURITY.md) for reporting.
 
 ## Documentation
 

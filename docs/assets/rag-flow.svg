@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="380" viewBox="0 0 1240 380" role="img" aria-labelledby="ragTitle ragDesc">
+  <title id="ragTitle">Retrieval-augmented answers</title>
+  <desc id="ragDesc">Your documentation is split into heading-aware chunks, indexed with vectors and keywords, retrieved by the flow's retrieval node and passed to the agent with citation markers.</desc>
+
+  <defs>
+    <filter id="ragShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.07" />
+    </filter>
+    <marker id="ragArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b" />
+    </marker>
+    <marker id="ragArrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#059669" />
+    </marker>
+  </defs>
+
+  <rect x="8" y="8" width="1224" height="364" rx="24" fill="#f8fafc" stroke="#e2e8f0" />
+  <text x="40" y="44" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="18" font-weight="700" fill="#0f172a">Retrieval-augmented answers</text>
+  <text x="40" y="66" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12" fill="#64748b">Your documentation becomes cited context for every reply.</text>
+
+  <!-- Sources -->
+  <g filter="url(#ragShadow)">
+    <rect x="40" y="140" width="200" height="92" rx="12" fill="#ffffff" stroke="#bae6fd" />
+    <rect x="40" y="140" width="4" height="92" rx="2" fill="#38bdf8" />
+  </g>
+  <rect x="56" y="156" width="24" height="20" rx="5" fill="#e0f2fe" />
+  <path d="M61 162h14M61 167h9M61 172h12" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" />
+  <text x="88" y="166" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#0f172a">Your documentation</text>
+  <text x="56" y="191" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">docs/kb · Markdown uploads</text>
+  <text x="56" y="209" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#94a3b8">10 demo support articles</text>
+
+  <!-- Chunking -->
+  <g filter="url(#ragShadow)">
+    <rect x="280" y="140" width="180" height="92" rx="12" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <text x="298" y="166" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#0f172a">Heading-aware chunks</text>
+  <text x="298" y="191" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">900 chars · 120 overlap</text>
+  <text x="298" y="209" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#94a3b8">headings stay with context</text>
+
+  <!-- Index -->
+  <g filter="url(#ragShadow)">
+    <rect x="500" y="140" width="200" height="92" rx="12" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <text x="518" y="166" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#0f172a">Hybrid index</text>
+  <text x="518" y="191" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">vector 60% · lexical 40%</text>
+  <text x="518" y="209" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#94a3b8">offline hash or embeddings API</text>
+
+  <!-- Retrieval -->
+  <g filter="url(#ragShadow)">
+    <rect x="740" y="140" width="180" height="92" rx="12" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <text x="758" y="166" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#0f172a">Retrieval node</text>
+  <text x="758" y="191" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">top-k · score threshold</text>
+  <text x="758" y="209" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#94a3b8">placed anywhere in the flow</text>
+
+  <!-- Answer -->
+  <g filter="url(#ragShadow)">
+    <rect x="960" y="140" width="220" height="92" rx="12" fill="#ffffff" stroke="#a7f3d0" />
+    <rect x="960" y="140" width="4" height="92" rx="2" fill="#10b981" />
+  </g>
+  <text x="980" y="166" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#065f46">Cited answer</text>
+  <text x="980" y="191" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#047857">passages as [1] [2]</text>
+  <text x="980" y="209" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#34d399">only your docs, not guesses</text>
+
+  <!-- Supporting rows -->
+  <g filter="url(#ragShadow)">
+    <rect x="40" y="270" width="200" height="62" rx="12" fill="#ffffff" stroke="#e2e8f0" />
+  </g>
+  <text x="56" y="294" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#0f172a">Studio knowledge panel</text>
+  <text x="56" y="313" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">upload · reindex · search · full text</text>
+  <line x1="140" y1="270" x2="140" y2="234" stroke="#64748b" stroke-width="1.6" marker-end="url(#ragArrow)" />
+
+  <g filter="url(#ragShadow)">
+    <rect x="500" y="270" width="200" height="62" rx="12" fill="#ffffff" stroke="#fde68a" />
+  </g>
+  <text x="516" y="294" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#0f172a">Embeddings</text>
+  <text x="516" y="313" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">hash (offline) or /v1/embeddings</text>
+  <line x1="600" y1="270" x2="600" y2="234" stroke="#64748b" stroke-width="1.6" marker-end="url(#ragArrow)" />
+
+  <!-- Arrows -->
+  <line x1="240" y1="186" x2="278" y2="186" stroke="#64748b" stroke-width="1.6" marker-end="url(#ragArrow)" />
+  <line x1="460" y1="186" x2="498" y2="186" stroke="#64748b" stroke-width="1.6" marker-end="url(#ragArrow)" />
+  <line x1="700" y1="186" x2="738" y2="186" stroke="#64748b" stroke-width="1.6" marker-end="url(#ragArrow)" />
+  <line x1="920" y1="186" x2="958" y2="186" stroke="#059669" stroke-width="1.8" marker-end="url(#ragArrowGreen)" />
+
+  <text x="420" y="246" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#94a3b8">every reply cites the passages it used</text>
+</svg>
