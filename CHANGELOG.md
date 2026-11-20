@@ -81,6 +81,9 @@ conversations, with a deterministic offline demo.
   (native client) and mainstream OpenAI-compatible vendors (DeepSeek, Qwen,
   Kimi, GLM, Doubao, ERNIE, MiniMax, SiliconFlow, OpenRouter, Gemini, Ollama
   and custom gateways) through provider presets.
+- **UI polish:** the top bar is now a full-width, sticky frosted-glass header
+  with a translucent gradient, so scrolled content stays blurred behind it
+  instead of showing through the top gap.
 - **UI polish:** rounded dropdown menus, bilingual provider/prompt copy and a
   wider customer layout for the conversation sidebar.
 - **Developer experience:** a `bridge-agents` CLI (`demo`, `serve`, `init-db`,

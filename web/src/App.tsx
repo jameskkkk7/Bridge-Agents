@@ -102,8 +102,9 @@ export default function App() {
 
   if (staffView) {
     return (
-      <div className="mx-auto min-h-dvh max-w-6xl px-3 pb-20 pt-3 sm:px-6 sm:pt-5">
-        <header className="sticky top-2 z-40 mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/85 px-3 py-2.5 shadow-sm backdrop-blur-md sm:gap-3 sm:px-4">
+      <div className="mx-auto min-h-dvh max-w-6xl px-3 pb-20 sm:px-6">
+        <div className="sticky top-0 z-40 -mx-3 mb-4 border-b border-border/60 bg-gradient-to-b from-background/95 via-background/85 to-background/70 px-3 pt-3 pb-2 backdrop-blur-xl backdrop-saturate-150 sm:-mx-6 sm:px-6">
+          <header className="flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-card/75 px-3 py-2.5 shadow-sm sm:gap-3 sm:px-4">
           <button
             className="flex min-w-0 items-center gap-2.5 text-left"
             onClick={() => navigate("/admin")}
@@ -144,7 +145,8 @@ export default function App() {
             {languageSwitch}
             <span className="hidden text-xs text-muted-foreground sm:inline">v0.1.0</span>
           </div>
-        </header>
+          </header>
+        </div>
         <main>
           {staffView === "support" && <AdminPage />}
           {staffView === "studio" && <GraphPage />}
@@ -154,8 +156,9 @@ export default function App() {
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-6xl px-3 pb-16 pt-3 sm:px-6 sm:pt-5">
-      <header className="sticky top-2 z-40 mb-4 flex items-center gap-2 rounded-xl border border-border bg-background/85 px-3 py-2.5 shadow-sm backdrop-blur-md sm:gap-3 sm:px-4">
+    <div className="mx-auto min-h-dvh max-w-6xl px-3 pb-16 sm:px-6">
+      <div className="sticky top-0 z-40 -mx-3 mb-4 border-b border-border/60 bg-gradient-to-b from-background/95 via-background/85 to-background/70 px-3 pt-3 pb-2 backdrop-blur-xl backdrop-saturate-150 sm:-mx-6 sm:px-6">
+        <header className="flex items-center gap-2 rounded-xl border border-border/80 bg-card/75 px-3 py-2.5 shadow-sm sm:gap-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <BrandMark />
           <span className="min-w-0">
@@ -175,7 +178,8 @@ export default function App() {
           {languageSwitch}
           <span className="hidden text-xs text-muted-foreground sm:inline">v0.1.0</span>
         </div>
-      </header>
+        </header>
+      </div>
       <main>
         <ChatPage />
       </main>
