@@ -1,6 +1,5 @@
 [Unit]
 Description=Bridge-Agents server
-Documentation=https://github.com/jameskkkk7/Bridge-Agents
 After=network-online.target
 Wants=network-online.target
 

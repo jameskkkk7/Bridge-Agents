@@ -1,93 +1,100 @@
 <div align="center">
 
-<img src="docs/assets/banner.svg" alt="Bridge-Agents — 面向客户对话的自托管 Agent 运行时" width="100%" />
+<img src="docs/assets/banner.svg" alt="Bridge-Agents —— 面向客户对话的自托管智能体运行时" width="100%" />
 
 # Bridge-Agents
 
-**能对客户发出去的 AI 回复，才值得发出去。**
+**只会发送你愿意为之负责的回复。**
 
-<sub>面向客户对话的自托管 Agent 运行时 —— 编排流程、审核输出、交接给人工。</sub>
+<sub>面向客户对话的自托管、带审核门禁的智能体运行时——编排流程、把关输出、随时转人工。<br />连接成熟企业系统与智能体客服的桥梁。</sub>
 
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="Apache-2.0" />
-<img src="https://img.shields.io/badge/self--hosted-yes-2ea043?style=for-the-badge" alt="可自托管" />
+<img src="https://img.shields.io/badge/self--hosted-yes-2ea043?style=for-the-badge" alt="自托管" />
+<img src="https://img.shields.io/badge/python-3.11%2B-3776ab?style=for-the-badge" alt="Python 3.11+" />
 <img src="https://img.shields.io/badge/status-0.1.0%20in%20progress-f59e0b?style=for-the-badge" alt="0.1.0 开发中" />
 
-<sub><a href="README.md">English</a> · 简体中文</sub>
+<sub>简体中文 · <a href="README.md">English</a></sub>
 
 <br /><br />
 
-[为什么需要 Bridge-Agents](#为什么需要-bridge-agents) · [怎么工作](#怎么工作) · [演示](#30-秒演示) · [现在就试](#现在就试) · [常见问题](#常见问题) · [路线图](#路线图)
+[为什么是 Bridge-Agents](#为什么是-bridge-agents) · [怎么工作](#怎么工作) · [演示](#30-秒演示) · [快速开始](#快速开始) · [部署](#部署) · [包与嵌入](#包与嵌入) · [适合谁](#适合谁) · [常见问题](#常见问题) · [路线图](#路线图)
 
 </div>
 
 ## 为什么需要 Bridge-Agents
 
-AI 客服很快、很便宜，但一句不该说的话，就可能变成一次退款、一次合规事故，
-或者一张被截图传遍社交网络的对话。多数工具只是给你一个机器人，然后祈祷它
-别出事。Bridge-Agents 围绕另一个问题设计：**客户看到回复之前，谁来检查它？**
+AI 客服又快又便宜，但一句错话就可能带来退款、合规审查或社交媒体上的截图。大多数工具只把机器人交给你，然后祈祷一切顺利。Bridge-Agents 围绕另一个问题设计：**在客户看到回复之前，谁来检查它？**
 
-## Bridge-Agents 给你什么
+## 为什么是 Bridge-Agents
 
-| 🛡 **发送前先审核** | 🙋 **人始终有最终控制权** |
+| 🛡 **先审核，再发送** | 🙋 **人始终在控制位** |
 |---|---|
-| 第二个模型按你的政策审核每一份草稿：通过的文本才流式发给客户；被拒绝的回复会被替换成预设的安全文案，客户永远看不到草稿。 | 客服可以随时接管会话，AI 正在生成的回复会被取消，随后在管理端或绑定的飞书群里直接回复；客户对接的是人，而不是另一条重复的机器回复。 |
-| 📚 **回答带出处** | 🧩 **改流程，不用改代码** |
-| 每条回复都基于你的文档：检索器找出相关段落，助手用 [1]、[2] 标注出处，审核门禁仍然检查措辞。 | 对话流程是一份经过校验的配置。运营可以在画布上拖拽连线重排流程；跑不起来的流程会在生效前被拒绝，仍保留 JSON 高级编辑。 |
+| 第二个模型按你的策略审核每一版草稿。通过的内容流式发给客户；被拒绝的草稿用兜底文案替换，绝不会展示给客户。 | 同事可以接管会话，AI 正在生成的回复会被取消，然后从客服台或绑定的飞书会话直接回复。客户得到的是真人，而不是重复回复。 |
+| 📚 **回答有出处** | 🧩 **改流程，不改代码** |
+| 每个回复都基于你的文档。检索器找到相关段落，助手用 [1]、[2] 引用，审核门禁仍会检查措辞。 | 对话流程是可保存的配置。运营可以在拖拽画布上重排；无法编译的流程在生效前就会被拒绝。高级用户仍可用 JSON 编辑。 |
 
-再加上那些不炫但重要的部分：**数据留在你自己手里。** 可自托管、默认单机
-数据库、演示模式不产生任何外部调用，并且区分客户、客服、管理员三种角色。
+此外还包括：
+
+- **第三方审核**：本地敏感词硬门 + 可选 OpenAI、Azure AI Content Safety、Google Perspective、阿里云、腾讯云审核，支持 fail-open / fail-closed 策略与按厂商的文本分片。
+- **主流模型厂商**：OpenAI、Azure OpenAI（原生客户端）、DeepSeek、通义千问、Kimi、智谱 GLM、豆包、文心一言、MiniMax、硅基流动、OpenRouter、Gemini、Anthropic 网关、Ollama 以及任意 OpenAI 兼容接口。
+- **客户可直接上手的演示**：昵称进入（无需登录）、左侧多会话切换、图片发送、流式回复、中英双语、明暗主题与手机布局。
+- **看得清的客服台**：AI 回复与真人回复标注区分，会话级接管状态可见，图片在记录中直接渲染。
+
+以及那些"无聊但重要"的部分：**数据始终是你自己的**。自托管、默认 SQLite（可选 PostgreSQL/MySQL）、演示模式无外部调用，并提供客户、客服、管理员三种角色。运行时本身也是可 pip 安装、可嵌入的异步库。
 
 ## 怎么工作
 
 ```mermaid
 flowchart TD
-    customer(["客户消息"]) --> retrieve["知识库返回带出处的段落"]
-    retrieve --> assistant["AI 助手生成草稿"]
-    assistant --> review{"政策审核"}
+    customer(["客户消息"]) --> retrieve["知识库返回带引用的段落"]
+    retrieve --> assistant["AI 助手生成回复草稿"]
+    assistant --> review{"策略审核"}
     review -->|通过| sent(["回复发送给客户"])
-    review -->|拒绝| fallback["安全文案"]
+    review -->|拦截| fallback["安全兜底文案"]
     fallback --> sent
-    assistant -.->|人工接管| teammate(["客服直接回复"])
+    assistant -.->|人工接管| teammate(["同事直接回复"])
     teammate --> sent
 ```
 
-1. 检索器从知识库找出相关段落，AI 助手据此生成带出处的回复草稿。
-2. 在任何一个字到达客户之前，审核器按你的政策检查草稿 —— 审核期间草稿被
-   扣住不发送。
-3. 通过的回复自然流式到达客户；被拒绝的回复换成预设的安全文案。当会话需要
-   真人时，客服一键接管，AI 立刻停止。
+1. 检索器在你的知识库中找到相关段落，助手生成带引用的回答。
+2. 在任何一个字到达客户之前，审核器按你的策略检查草稿——期间文本会被缓冲。
+3. 通过的回复自然流式发送；被拒绝的回复变成预先写好的安全兜底。需要真人时，同事接管，AI 停止。
+
+流程是由节点组成的图（`system`、`retrieval`、`agent`、`tools`、`custom`、`sanitize`、`review`、start/end），可可视化编辑或直接改 JSON；完整契约见 [docs/architecture.md](docs/architecture.md)。
 
 ## 30 秒演示
 
-> **demo GIF 位置：[`docs/screenshots/demo.gif`](docs/screenshots/README.md)。**
-> 演示在发布时从真实界面录制，不使用合成截图；在录制到位前，下面就是它展示的
-> 完整流程。
+> **演示 GIF 位置：[`docs/screenshots/demo.gif`](docs/screenshots/README.md)。**
+> 录屏使用真实 UI，不用原型图。
 
-演示讲的故事：
+1. 客户填写昵称后问 *"如何激活 Widget Pro？"*——回答以 [1] 引用知识库段落。
+2. 客户在左侧新开一个会话问 *"能保证退款吗？"*——草稿承诺退款，审核门禁拦截，客户看到符合政策的兜底话术。
+3. 同事从客服台接管，AI 停止写作，真人直接回复；记录中 AI 回复与真人回复分别标注。
 
-1. 客户问：*"如何激活 Widget Pro？"* —— 回答以 [1] 标注知识库段落出处。
-2. 另一位客户问：*"你能保证退款吗？"* —— 草稿作出承诺，审核门禁拦下它，
-   客户看到的是符合政策的安全文案。
-3. 客服在管理端接管，AI 停止生成，由真人直接回复。
+## 快速开始
 
-运行 `docker compose up --build`，然后从两个入口之一进入：
+### 一条命令（本地，无需 Docker）
 
-- **`http://localhost/` —— 用户入口：** 只有聊天，没有客服/管理导航。
-- **`http://localhost/admin` —— 客服/管理员入口：** 客服台，Studio（流程 + 知识库）
-  在 `/admin/studio`。
-
-Studio → Knowledge 可以看到检索索引、检索预览与文档上传；Studio → 配置可以不
-重新部署就更换模型和客服提示词。顶栏可以切换浅色 / 深色主题。界面提供英文与简体
-中文两套文案，用顶栏的 EN / 中文 切换，选择会被记住。
-
-## 现在就试
-
-先拿代码：
+需要 Python 3.11 与 [uv](https://github.com/astral-sh/uv)；首次构建 Web 界面需要 Node.js。
 
 ```bash
 git clone <repository-url> bridge-agents
-cd bridge-agents
+cd Bridge-Agents
+uv sync
+uv run bridge-agents demo
 ```
+
+首次运行会从 `.env.example` 生成 `.env`，按需构建前端，然后启动确定性 mock 模型和 API。**一个进程同时提供界面和 API**：
+
+- **http://localhost:8000/** —— 客户入口
+- **http://localhost:8000/admin** —— 客服台；Studio 在 `/admin/studio`
+- **http://localhost:8000/health** —— 健康检查
+
+常用参数：
+
+- `uv run bridge-agents doctor` 检查本地依赖（Python、Node、`.env`、前端构建、端口）。
+- `bridge-agents demo --port 18000 --mock-port 8002` 更换端口；`--no-build` 跳过前端构建。
+- `make demo` 等价；`make help` 查看其他目标。
 
 ### 一条命令（Docker）
 
@@ -95,203 +102,238 @@ cd bridge-agents
 docker compose up --build
 ```
 
-API、网页 demo 与确定性 mock 模型一起启动，无 API Key、完全离线可用。打开
-http://localhost 看界面；API 与健康检查在 http://localhost:8000。
+启动 API、Web 界面和确定性 mock 模型，全程离线、无需 API Key：
 
-```bash
-curl http://127.0.0.1:8000/health
-# {"status":"ok","version":"0.1.0"}
-```
+- **http://localhost/** —— 客户入口
+- **http://localhost/admin** —— 员工入口
+- **http://localhost:8000/health** —— API 健康检查
 
-会话数据保存在命名卷中，`docker compose restart api` 后依然存在；默认端口被
-占用时可用 `WEB_PORT` / `API_PORT` 覆盖。
+会话保存在命名卷中，`docker compose restart api` 不会丢数据；端口冲突时设置 `WEB_PORT` / `API_PORT`。
 
-### 本地 Python
-
-需要 Python 3.11 与 [uv](https://github.com/astral-sh/uv)：
+### 手动开发（API + Vite 热更新）
 
 ```bash
 uv sync
-cp .env.example .env
+cp .env.example .env          # 演示登录需要 ALLOW_DEV_LOGIN=true
+uv run bridge-agents init-db
+uv run bridge-agents serve --reload        # API + 构建后的界面 :8000
 ```
 
-在 `.env` 里打开 `ALLOW_DEV_LOGIN=true`，然后：
+前端热更新在第二个终端运行 Vite，它会把 `/api`、`/ws` 代理到 API：
 
 ```bash
-uv run python scripts/init_db.py
-uv run uvicorn app.main:app --reload
+npm --prefix web install
+npm --prefix web run dev                   # http://localhost:5173
 ```
 
-前端开发：界面使用 React 19 + TypeScript + Vite 6，**Tailwind CSS 4 + shadcn/ui
-（Radix 原语）** 组件（Button、Card、Input、Textarea、Label、Badge、Tabs）、
-lucide 图标、**@xyflow/react（React Flow）流程编辑器**、自托管可变字体
-（Kumbh Sans、Noto Sans SC、Roboto Mono）与浅色/深色 token 系统；代码在 `web/`。执行
-`cd web && npm install && npm run dev`，Vite 会把 `/api` 与 `/ws` 代理到本地
-API。接口、配置、质量门禁等工程细节见
-[docs/architecture.md](docs/architecture.md)。
+## 配置
+
+非敏感配置可以放在 `bridge-agents.toml`（参考 [bridge-agents.toml.example](bridge-agents.toml.example)），密钥放在 `.env` 或环境变量。优先级：
+
+**命令行参数 > 环境变量 > `.env` > `bridge-agents.toml` > 默认值**
+
+可用 `--config PATH` 或 `BRIDGE_CONFIG` 指定文件；`bridge-agents init` 生成起始配置，`bridge-agents config check` 校验。
+
+常用开关：
+
+| 变量 | 默认值 | 作用 |
+|---|---|---|
+| `APP_ENV` | `development` | `production` 关闭演示登录并收紧默认值 |
+| `BRIDGE_CONFIG` | `bridge-agents.toml` | 可选的非敏感 TOML 配置文件 |
+| `DATABASE_URL` | 本地 SQLite | 切换到 PostgreSQL 或 MySQL |
+| `AUTH_VERIFIER` / `JWT_*` | HS256 | 本地密钥、RS256 PEM 或外部 OIDC JWKS |
+| `ALLOW_DEV_LOGIN` | `false` | 演示登录；生产环境强制关闭 |
+| `LLM_PROVIDER` / `OPENAI_*` | `openai` / mock 模型 | 厂商预设、Endpoint、模型、Key、超时 |
+| `MODERATION_*` | 关闭 | 第三方审核密钥、范围与主机白名单 |
+| `RAG_*` | hash 嵌入 | 检索分片、Top-K、Embeddings 接口 |
+| `WEB_DIST_DIR` | `web/dist` | API 托管的前端目录；留空则不托管静态文件 |
+| `LARK_*` | 关闭 | 飞书签名 Webhook 与客服指令 |
+
+完整清单见 [.env.example](.env.example) 与 [docs/architecture.md](docs/architecture.md#configuration)。
+
+前端会请求 `GET /api/v1/meta` 获取服务端版本、`api_version` 与 `min_web_version`，因此独立部署的前端可以检测版本不匹配。
+
+## 部署
+
+Python 包与 GUI 分开分发：GUI 由 nginx/CDN 托管，服务端保持普通 pip 安装：
+
+| 产物 | 内容 |
+|---|---|
+| `bridge-agents` | 核心 Python 运行时（不含服务端依赖） |
+| `bridge-agents-server` | FastAPI 服务端、数据库模型、CLI；固定匹配的核心版本 |
+| `bridge-agents-web-<version>.tar.gz` | 构建好的静态 GUI，供 nginx/CDN 使用（从不打进 wheel） |
+
+```bash
+python -m venv /opt/bridge-agents/.venv
+/opt/bridge-agents/.venv/bin/pip install "bridge-agents-server[postgres]"
+
+bridge-agents init --config /etc/bridge-agents/bridge-agents.toml \
+    --env-file /etc/bridge-agents/bridge-agents.env
+bridge-agents init-db --config /etc/bridge-agents/bridge-agents.toml
+bridge-agents config check --config /etc/bridge-agents/bridge-agents.toml
+bridge-agents serve --config /etc/bridge-agents/bridge-agents.toml
+```
+
+标准拓扑是 **nginx 托管静态 GUI，并把 `/api`、`/ws` 反向代理到 `127.0.0.1:8000`** —— 同源，无需 CORS。复制 [deploy/bridge-agents.service](deploy/bridge-agents.service) 与 [deploy/nginx.conf](deploy/nginx.conf)，并按 [deploy/README.md](deploy/README.md) 的生产清单逐项核对。
+
+在仓库中执行 `make release` 可一次构建两个 wheel 与带版本号的 Web 静态包。
+
+## 包与嵌入
+
+本仓库构建两个 Python 发行包和一个 Web 静态产物：
+
+- **`bridge-agents`**（`import bridge_agents`）——审核门禁 pipeline、流程图校验、检索、鉴权校验器、审核适配器、注入防护、限流、可嵌入的 `AgentRuntime` 与测试替身。
+- **`bridge-agents-server`** —— FastAPI 应用、数据库模型与 `bridge-agents` CLI；extras：`[postgres]`、`[mysql]`。
+- **Web UI** —— `web/` 下的 React/Vite，构建为 `web/dist` 并以静态包发布。
+
+两个发行包尚未发布到 PyPI，可从仓库构建/安装：
+
+```bash
+uv build                                                   # 两个 wheel 输出到 dist/
+pip install --find-links dist bridge-agents                # 仅核心库
+pip install --find-links dist "bridge-agents-server[postgres]"
+uv sync                                                    # 应用 + CLI
+uv run bridge-agents version
+```
+
+不用 HTTP 栈时，直接嵌入运行时：
+
+```python
+from bridge_agents.runtime import AgentRuntime
+
+async with AgentRuntime(llm=my_chat_model) as runtime:
+    answer = await runtime.reply("如何激活 Widget Pro？")
+    async for event in runtime.stream("可以退款吗？"):
+        ...
+```
+
+已有 FastAPI 服务时，也可以挂载服务端：
+
+```python
+from app.main import create_app
+
+app.mount("/bridge-agents", create_app())
+```
+
+`bridge_agents.testing` 自带确定性的 `FakeChatModel` / `FakeModerator`，单测无需网络或 API Key。库说明见 [packages/bridge_agents/README.md](packages/bridge_agents/README.md)。
+
+## 开发
+
+需要 Python 3.11、[uv](https://github.com/astral-sh/uv)，Web UI 需要 Node 20+。
+
+```bash
+make demo        # mock 模型 + API + 构建后的界面 :8000
+make test        # pytest（312 项离线测试）
+make lint        # ruff check + 格式检查
+make check       # lint + 测试 + 前端构建
+make release     # wheel + 前端静态发布包
+make help        # 查看全部目标
+```
+
+后端结构：`app/`（FastAPI、模型、服务、CLI）、`packages/bridge_agents/`（核心库）、`web/`（React UI）、`tests/`、`deploy/`、`docs/`。质量门禁：pytest（`app/core` 与库合计 91% 覆盖率）、ruff、仓库内容清洗门禁，以及 lint/测试/密钥/前端构建的 CI。
+
+从这里开始读：
+
+- [docs/architecture.md](docs/architecture.md) —— API、运行时节点、配置、质量门禁
+- [docs/design-decisions.md](docs/design-decisions.md) —— 为什么这样设计
+- [deploy/README.md](deploy/README.md) —— 生产拓扑与检查清单
+- [CHANGELOG.md](CHANGELOG.md) —— 最近变更
 
 ## 适合谁
 
-| | Bridge-Agents | 典型低代码机器人平台 |
+| | Bridge-Agents | 常见低代码机器人平台 |
 |---|---|---|
-| 设计重心是"审核回复"而不只是"生成回复" | ✅ 审核门禁在运行时内部 | 内容审核通常在生成之后 |
-| 人工接管能中止 AI 正在写的回复 | ✅ 管理端接管会取消在途回复 | 视产品而定 |
-| 对话流程和代码一起进入评审流程 | ✅ 配置保存前先校验 | 通常在托管画布中编辑 |
-| 回复基于你自己的文档 | ✅ 混合检索 + 出处标注 + 可编辑知识库 | 往往只能靠提示词或额外插件 |
-| 不改部署就能换模型或提示词 | ✅ 工作台配置，下一条消息即生效 | 通常要改环境变量并重启 |
-| 手机上也能用 | ✅ 客户聊天、客服台、工作台全部响应式适配 | 管理后台往往只考虑桌面 |
-| 浅色 / 深色主题 | ✅ 一套 token 系统，顶栏切换并记住选择 | 往往只有单一主题 |
-| 现代组件体系 | ✅ Tailwind 4 + shadcn/ui（Radix），组件源码在仓库内 | 往往是封闭组件库 |
-| 敏感词过滤 | ✅ 本地硬门限 + 可选 OpenAI / Azure / Perspective / 阿里云 / 腾讯云审核 | 往往只有其中一种 |
-| 离线演示与评估 | ✅ 一条命令 + mock 模型 | 往往云端优先 |
+| 围绕"先审核回复"设计 | ✅ 审核门禁在运行时内部 | 通常生成后再做审核 |
+| 人工接管会中断 AI 回复 | ✅ 接管即取消待发送回复 | 取决于产品 |
+| 对话流程属于代码与评审 | ✅ 保存配置，生效前校验 | 通常托管在平台画布中 |
+| 回答基于你的文档 | ✅ 混合检索 + 引用 + 可编辑知识库 | 常见仅靠提示词或独立插件 |
+| 不重部署即可换模型/提示词 | ✅ Studio 设置，下一条消息生效 | 通常要改环境并重启 |
+| 自托管、可嵌入 | ✅ 运行时可 pip 安装，GUI 为静态产物，一条命令演示 | 多为封闭 SaaS |
 
-低代码平台很适合拖拽式原型；Bridge-Agents 面向的是**回复带有商业或法律分量**
-的团队 —— 在这些场景里，"是机器人说的"不是一个可以接受的答案。
+低代码平台适合做拖拽原型；Bridge-Agents 面向回复带有商业或法律责任的团队——"机器人说的"不是可接受的答案。
 
 ## 当前进度
 
-**0.1.0 正在开发中。** 今天已经真实可用 vs. 接下来要做：
+**0.1.0 仍在开发中。** 现在已经可用 vs. 下一步：
 
-| 现在 | 接下来 | 之后 |
-|---|---|---|
-| 三角色安全登录（客户 / 客服 / 管理员） | CI、设计文档与发布打包 | Slack 适配器与 Webhook API |
-| 审核门控运行时：缓冲、重试、兜底文案、安全默认 | — | 数据库迁移与部署指南 |
-| 实时会话：REST + WebSocket 流式推送 | 可嵌入 widget | 压测脚本与多租户存储 |
-| 两个入口：用户聊天入口 `/`，客服/管理员入口 `/admin`（客服台 + Studio） | — | — |
-| 图形化流程编辑器：拖拽画布、节点配置、条件连线、自动布局与 JSON 回退 | — | — |
-| 中英双语界面：英文与简体中文切换，按浏览器记忆 | — | — |
-| 基于文档的回答：混合检索、出处标注、知识库上传/重建/检索预览 | 重排序与多租户知识库 | — |
-| 工作台配置：运行时模型配置（服务商、模型、采样参数、加密 API Key）与客服提示词编辑 | 多租户模型路由 | OpenAI 兼容 API 之外的厂商专属参数 |
-| 响应式界面：手机和平板下的客户聊天、客服台与工作台布局 | 原生 App | 桌面优先的管理后台 |
-| 人工回复：管理端实时会话记录、接管与回复框（客户即时收到） | 把客户/助手/客服消息镜像到 Slack | — |
-| Lark 渠道：签名 webhook、加密事件、客服命令与双向人工回复（默认关闭） | — | — |
-| 一条命令启动的 Docker 栈：API + web + 确定性 mock 模型（离线、无需 API Key） | — | — |
-
+| 已具备 | 下一步 |
+|---|---|
+| 审核门禁运行时：缓冲、重试、兜底、安全默认值 | 数据库迁移（Alembic）与升级命令 |
+| 第三方审核：本地硬门 + 5 家厂商、分片、失败策略 | 浏览器 OIDC 登录流程（JWKS/RS256 令牌校验已具备） |
+| 模型厂商预设：OpenAI、Azure OpenAI 及另外 13 个（OpenAI 兼容厂商 + 自定义网关） | PyPI 发布与容器镜像（server + web）及发布自动化 |
+| RAG：引用、上传、重建索引与搜索预览 | Slack 适配器与公开 Webhook API |
+| 可视化流程编辑器：节点面板、自动布局、JSON 回退 | 可嵌入客户组件、重排与多租户存储 |
+| 客服台：接管、AI/真人标注、图片记录 | Kubernetes/Helm 部署选项 |
+| 客户演示：昵称进入、多会话记录、附件、流式回复 | — |
+| 中英双语、响应式、明暗主题 | — |
+| 飞书渠道：签名 Webhook 与双向真人回复 | — |
+| 打包：两个 pip 包、TOML/环境变量配置、CLI、静态前端包、systemd/nginx 模板 | — |
+| 离线一条命令演示与 Docker Compose 栈 | — |
+| 312 项离线测试、91% 覆盖率、ruff 与内容清洗门禁 | — |
 
 ## 常见问题
 
-**这是又一个聊天机器人搭建工具吗？**
-不是。它是聊天产品**背后**的运行时：决定 AI 能说什么、谁能改流程、什么时候
-由人接手的那个部分。
+**这是聊天机器人搭建器吗？**
+不是。它是聊天产品背后的运行时：决定 AI 能说什么、谁能改流程、什么时候转真人。
 
-**试用需要 OpenAI 的 API Key 吗？**
-不需要。默认使用确定性的 mock 模型，全新 checkout 离线就能跑；接入真实模型
-时，任何 OpenAI 兼容端点都可以。
+**试用需要 API Key 吗？**
+不需要。默认使用确定性 mock 模型，新检出的仓库可离线运行。
 
-**两个入口分别是什么？**
-`/` 是用户聊天入口，不显示任何客服/管理导航；`/admin` 是客服/管理员入口：
-客服台在 `/admin`，Studio（流程与知识库）在 `/admin/studio`。旧的 `/graph`
-会重定向到 `/admin/studio`。
+**必须用 Docker 吗？**
+不需要。`uv sync && uv run bridge-agents demo` 即可本地跑起完整演示；Docker Compose 是同样离线的替代方案。
 
-**界面支持中文吗？**
-支持。浏览器 demo 提供英文与简体中文两套文案，并会记住你的选择。演示用的
-mock 模型回答是英文的（内置知识文档是英文），但界面文案、提示和客服流程都已
-完整翻译。
+**演示里有登录界面吗？**
+没有。客户填写昵称后即可开始聊天（昵称用于客服称呼，并让每个浏览器拥有独立会话）。内部演示登录仅用于开发，生产环境关闭。
 
-**可以切换浅色 / 深色吗？**
-可以。顶栏的主题按钮会切换整套界面；选择按浏览器记住，首次访问跟随系统
-`prefers-color-scheme`，并在首屏绘制前生效。
+**两个入口在哪里？**
+`/` 是客户聊天，不含员工导航；`/admin` 是员工入口：客服台在 `/admin`，Studio（流程、知识库、设置）在 `/admin/studio`。
 
-**手机上能用吗？**
-可以。客户聊天、客服台和工作台都做了响应式适配，最小到 360px 宽，也验证了横屏；
-导航会换行、栅格变成单列、回复框占满整行、次要表格列自动隐藏，不会横向滚动。
+**支持哪些模型和审核厂商？**
+模型预设覆盖 OpenAI、Azure OpenAI（原生客户端）、DeepSeek、通义千问、Kimi、智谱 GLM、豆包、文心一言、MiniMax、硅基流动、OpenRouter、Gemini、Anthropic 网关、Ollama 及任意 OpenAI 兼容接口。审核支持本地敏感词 + OpenAI 兼容、Azure、Perspective、阿里云、腾讯云适配器。
 
-**不重新部署可以换模型或客服提示词吗？**
-可以。工作台 → 配置可以修改 OpenAI 兼容端点、模型名、温度、超时、重试次数和
-API Key，并编辑客服系统提示词；保存后对下一条消息立即生效。API Key 加密存储，
-接口永远不会返回明文。
+**不改代码能换模型或客服提示词吗？**
+可以。Studio → 配置可修改厂商/模型/采样/API Key 与客服系统提示词，保存后下一条消息生效；API Key 加密存储，接口不会返回明文。
 
 **真人可以回复客户吗？**
-可以。管理端会实时显示会话记录；接管后，回复框发出的消息会立即送达客户。
-已绑定的飞书群同理：`/takeover` 之后直接发普通文本即可送达客户。
+可以。客服台实时显示会话记录，接管后回复框发送真实消息，客户立即收到；绑定飞书会话后同样可用。
 
-**会基于我自己的文档回答吗？**
-会。检索器索引一个知识目录（首次启动从 `docs/kb` 播种，可在 Studio 页面
-编辑），助手会标注所用段落的出处。默认嵌入器是确定性、离线运行的；生产环境
-把 `RAG_EMBEDDER=openai` 指向任意 `/v1/embeddings` 端点即可。
+**能基于我自己的文档回答吗？**
+可以。检索器索引知识目录（默认从 `docs/kb` 播种，可在 Studio 编辑），助手会引用使用的段落。默认嵌入器确定性且离线；`RAG_EMBEDDER=openai` 可接任意 `/v1/embeddings`。
 
-**可以自己部署吗？**
-可以 —— Apache-2.0，无厂商账号绑定，默认单机数据库，也可以通过配置切换到
-PostgreSQL 或 MySQL。
-
-**客户数据存在哪里？**
-存在你自己的数据库里。演示模式没有遥测、没有外部调用；demo 登录在生产环境
-会自动关闭。
-
-**非工程师能改对话流程吗？**
-流程是保存的配置，并在生效前做校验。可视化编辑器在路线图中；目前通过管理
-接口编辑。
+**非工程师能改流程吗？**
+可以。可视化编辑器保存前会校验配置；高级用户仍可使用 JSON 编辑器。
 
 **能上生产吗？**
-还不能。0.1.0 是第一个版本；请以[当前进度](#当前进度)表为准。
+还不能。0.1.0 是第一个版本；参见[进度表](#当前进度)与[部署检查清单](deploy/README.md)。
+
+**界面支持中文、手机、深色模式吗？**
+支持。中英文可切换并记住选择，布局响应式下探到 360px，明暗主题在首屏渲染前生效。
 
 ## 安全与隐私
 
-仓库不携带任何凭据或客户数据。demo 登录绝不会出现在生产环境；客户与客服
-角色相互隔离；对话流程的每次修改都要先通过校验才能生效。漏洞上报方式见
-[SECURITY.md](SECURITY.md)。
+仓库不包含任何凭据或客户数据。演示登录不会在生产挂载，客户与员工角色隔离，厂商密钥只存在于环境变量（或加密的运行时设置）中，流程的任何变更在生效前都会校验。漏洞报告见 [SECURITY.md](SECURITY.md)。
 
 ## 路线图
 
 - [x] 客户 / 客服 / 管理员三角色安全访问
-- [x] 审核门控运行时：重试、兜底文案、安全默认
-- [x] 管理接口：查看、编辑、校验、重置对话流程
-- [x] 实时会话：会话、消息、图片 API 与 WebSocket 流式推送（含 `stream_end` 兜底）
-- [x] 网页 demo：聊天、流程编辑、带人工接管的管理端
-- [x] 取消在途 AI 回复的人工接管
-- [x] 带 mock 模型的一键 Docker demo（离线、无需 API Key）
-- [x] 首个消息平台接入：Lark webhook（签名事件 + 客服命令）
-- [x] 基于文档的 RAG 回答：混合检索、出处标注、知识库上传与重建
-- [x] 管理端与绑定飞书群中的人工回复，双向实时镜像
-- [x] 中英双语网页界面（英文 / 简体中文），语言选择会被记住
-- [x] 工作台配置：运行时模型配置（API Key 加密）与客服提示词编辑
-- [x] 手机与平板响应式界面（三个页面全部适配）
-- [x] 浅色 / 深色主题与自托管可变字体
-- [x] Tailwind CSS 4 + shadcn/ui（Radix）组件迁移
-- [x] 图形化流程编辑器（React Flow）：节点配置、自动布局、JSON 回退
-- [ ] 重排序、多租户知识库与可嵌入 widget
-- [ ] 第二个消息平台接入（Slack）与 Webhook API
-- [ ] 可视化流程编辑器与可嵌入 widget
-
-## 配置
-
-demo 不需要任何配置；真实部署常用的开关如下：
-
-| 变量 | 默认值 | 作用 |
-|---|---|---|
-| `LLM_MODE` / `OPENAI_*` | mock 模型 | 切换到任意 OpenAI 兼容端点 |
-| `DATABASE_URL` | 本地 SQLite 文件 | 切换到 PostgreSQL 或 MySQL |
-| `AUTH_VERIFIER` / `JWT_*` | HS256 | 密钥、PEM 公钥或 OIDC JWKS |
-| `ALLOW_DEV_LOGIN` | `false` | demo 登录；生产环境强制关闭 |
-| `API_PORT` / `WEB_PORT` | 8000 / 80 | compose 端口 |
-| `LARK_*` | 关闭 | 签名 Lark webhook 与客服命令 |
-| `KNOWLEDGE_DIR` / `DOCS_DIR` | `./data/knowledge` / `./docs/kb` | 知识库位置与种子目录 |
-| `RAG_EMBEDDER` / `RAG_TOP_K` | `hash` / `4` | 离线嵌入器，或任意 OpenAI 兼容 embeddings 端点 |
-
-全部配置项见 `.env.example` 与
-[docs/architecture.md](docs/architecture.md#configuration)。
-
-## 给工程师
-
-架构、运行时节点类型、接口、配置、设计取舍与质量门禁：
-**[docs/architecture.md](docs/architecture.md)**。
-安全：[SECURITY.md](SECURITY.md) · 参与贡献：
-[CONTRIBUTING.md](CONTRIBUTING.md) · 更新日志：[CHANGELOG.md](CHANGELOG.md) ·
-设计笔记：[docs/design-decisions.md](docs/design-decisions.md)。
-
-### 作为库使用
-
-审核门控、流程图校验、令牌校验器、注入防护与限流器同时打包成独立库
-（分发名 `bridge-agents`，import 名 `bridge_agents`）。当前未发布到 PyPI，
-可以从本仓库构建：
-
-```bash
-uv build --package bridge-agents
-pip install dist/bridge_agents-0.1.0-py3-none-any.whl
-```
-
-HTTP 服务、数据库模型、网页 demo 与 Lark 适配器仍属于应用层，见
-`packages/bridge_agents/`。
+- [x] 带重试、兜底和安全默认值的审核门禁运行时
+- [x] Admin API 编辑、校验、重置会话流程
+- [x] 实时会话：session、消息、图片与 WebSocket 流式输出
+- [x] 浏览器演示：聊天、流程编辑器、带接管的客服台
+- [x] 人工接管时取消进行中的 AI 回复
+- [x] RAG：混合检索、引用、上传与重建索引
+- [x] 飞书渠道：签名事件与双向真人回复
+- [x] OpenAI / Azure / Perspective / 阿里云 / 腾讯云第三方审核
+- [x] 主流模型厂商预设（含 Azure OpenAI）
+- [x] 客户演示：昵称、多会话记录与图片附件
+- [x] 中英双语、响应式 UI 与明暗主题
+- [x] 打包、CLI、TOML 配置、静态前端发布与部署模板
+- [x] 离线一条命令演示与 Docker Compose 栈
+- [ ] 数据库迁移（Alembic）与 `db upgrade` 命令
+- [ ] 浏览器 OIDC 登录流程
+- [ ] PyPI 发布、容器镜像与发布自动化
+- [ ] Slack 适配器、公开 Webhook API 与可嵌入组件
+- [ ] 重排、多租户存储与 Kubernetes/Helm 选项
 
 ## 许可证
 
@@ -299,6 +341,4 @@ Apache-2.0，见 [LICENSE](LICENSE)。
 
 ## 出处说明
 
-Bridge-Agents 是一份独立、脱敏的重写：原作者为一个内部生产系统构建了这套客户
-对话运行时。本项目经书面许可公开发布，不包含任何专有代码、数据、凭据或客户
-信息。
+Bridge-Agents 是作者为内部生产系统构建的客户对话运行时的独立、清洗后重写版本，经书面许可发布。仓库不包含任何专有代码、数据、凭据或客户信息。
