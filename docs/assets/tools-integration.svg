@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="380" viewBox="0 0 1240 380" role="img" aria-labelledby="toolsTitle toolsDesc">
+  <title id="toolsTitle">Integration through tools</title>
+  <desc id="toolsDesc">Existing enterprise systems are exposed as typed tool adapters. The workflow's tools node binds the tools the agent may call, and tool results return to the model and the transcript.</desc>
+
+  <defs>
+    <filter id="toolShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.07" />
+    </filter>
+    <marker id="toolArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b" />
+    </marker>
+    <marker id="toolArrowIndigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5" />
+    </marker>
+  </defs>
+
+  <rect x="8" y="8" width="1224" height="364" rx="24" fill="#f8fafc" stroke="#e2e8f0" />
+  <text x="40" y="44" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="18" font-weight="700" fill="#0f172a">Integration through tools</text>
+  <text x="40" y="66" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12" fill="#64748b">Enterprise systems become typed tools; the workflow decides which tools the agent may call.</text>
+
+  <!-- Enterprise systems -->
+  <rect x="40" y="100" width="230" height="230" rx="16" fill="#fffbeb" stroke="#fde68a" />
+  <text x="58" y="130" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13.5" font-weight="700" fill="#b45309">Enterprise systems</text>
+  <g filter="url(#toolShadow)">
+    <rect x="58" y="145" width="194" height="52" rx="10" fill="#ffffff" stroke="#fde68a" />
+    <rect x="58" y="145" width="4" height="52" rx="2" fill="#f59e0b" />
+  </g>
+  <text x="74" y="166" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a">CRM · customers</text>
+  <text x="74" y="184" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">system of record</text>
+  <g filter="url(#toolShadow)">
+    <rect x="58" y="207" width="194" height="52" rx="10" fill="#ffffff" stroke="#fde68a" />
+    <rect x="58" y="207" width="4" height="52" rx="2" fill="#f59e0b" />
+  </g>
+  <text x="74" y="228" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a">Orders · fulfilment</text>
+  <text x="74" y="246" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">system of record</text>
+  <g filter="url(#toolShadow)">
+    <rect x="58" y="269" width="194" height="52" rx="10" fill="#ffffff" stroke="#fde68a" />
+    <rect x="58" y="269" width="4" height="52" rx="2" fill="#f59e0b" />
+  </g>
+  <text x="74" y="290" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a">Tickets · ERP</text>
+  <text x="74" y="308" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">system of record</text>
+
+  <!-- Tool adapters -->
+  <rect x="310" y="100" width="300" height="230" rx="16" fill="#eef2ff" stroke="#c7d2fe" />
+  <text x="328" y="130" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13.5" font-weight="700" fill="#4338ca">Tool adapters</text>
+  <g filter="url(#toolShadow)">
+    <rect x="328" y="145" width="264" height="52" rx="10" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <text x="344" y="165" font-family="Roboto Mono, Consolas, monospace" font-size="11.5" font-weight="600" fill="#0f172a">order_status</text>
+  <text x="344" y="184" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">GET /orders/{id} · typed args · read-only</text>
+  <g filter="url(#toolShadow)">
+    <rect x="328" y="207" width="264" height="52" rx="10" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <text x="344" y="227" font-family="Roboto Mono, Consolas, monospace" font-size="11.5" font-weight="600" fill="#0f172a">create_ticket</text>
+  <text x="344" y="246" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">POST /tickets · explicit write permission</text>
+  <g filter="url(#toolShadow)">
+    <rect x="328" y="269" width="264" height="52" rx="10" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <text x="344" y="289" font-family="Roboto Mono, Consolas, monospace" font-size="11.5" font-weight="600" fill="#0f172a">customer_lookup</text>
+  <text x="344" y="308" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">GET /customers/{id} · typed args · read-only</text>
+
+  <!-- Workflow -->
+  <rect x="650" y="100" width="300" height="230" rx="16" fill="#f0f9ff" stroke="#bae6fd" />
+  <text x="668" y="130" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13.5" font-weight="700" fill="#0369a1">Workflow</text>
+  <g filter="url(#toolShadow)">
+    <rect x="668" y="150" width="118" height="82" rx="12" fill="#ffffff" stroke="#bae6fd" />
+  </g>
+  <text x="727" y="177" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a">tools node</text>
+  <text x="727" y="196" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#64748b">bind allowed tools</text>
+  <text x="727" y="213" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#94a3b8">per flow</text>
+  <g filter="url(#toolShadow)">
+    <rect x="814" y="150" width="118" height="82" rx="12" fill="#ffffff" stroke="#bae6fd" />
+  </g>
+  <text x="873" y="177" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0f172a">agent</text>
+  <text x="873" y="196" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#64748b">calls a bound tool</text>
+  <text x="873" y="213" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#94a3b8">when needed</text>
+  <line x1="786" y1="191" x2="812" y2="191" stroke="#64748b" stroke-width="1.6" marker-end="url(#toolArrow)" />
+  <g filter="url(#toolShadow)">
+    <rect x="668" y="254" width="264" height="48" rx="10" fill="#ffffff" stroke="#bae6fd" />
+  </g>
+  <text x="684" y="274" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11.5" font-weight="600" fill="#0f172a">Tool result</text>
+  <text x="684" y="291" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#64748b">returns to the model context and the transcript</text>
+
+  <!-- Answer -->
+  <rect x="980" y="100" width="220" height="230" rx="16" fill="#ecfdf5" stroke="#a7f3d0" />
+  <text x="998" y="130" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13.5" font-weight="700" fill="#047857">Customer reply</text>
+  <g filter="url(#toolShadow)">
+    <rect x="998" y="150" width="184" height="110" rx="12" fill="#ffffff" stroke="#a7f3d0" />
+  </g>
+  <text x="1014" y="174" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#065f46">Answer with context</text>
+  <text x="1014" y="195" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#047857">tool result + retrieved docs</text>
+  <text x="1014" y="213" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#047857">cited as [1] [2]</text>
+  <text x="1014" y="237" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#34d399">no direct database access</text>
+  <g filter="url(#toolShadow)">
+    <rect x="998" y="274" width="184" height="28" rx="14" fill="#0d2a22" stroke="#34d399" stroke-opacity="0.6" />
+  </g>
+  <text x="1090" y="293" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#6ee7b7">systems stay the source of truth</text>
+
+  <!-- Connections -->
+  <line x1="270" y1="215" x2="310" y2="215" stroke="#64748b" stroke-width="1.6" marker-start="url(#toolArrow)" marker-end="url(#toolArrow)" />
+  <text x="290" y="205" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="9.5" fill="#64748b">API</text>
+  <line x1="610" y1="191" x2="650" y2="191" stroke="#4f46e5" stroke-width="1.8" marker-end="url(#toolArrowIndigo)" />
+  <text x="630" y="181" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="9.5" fill="#4f46e5">tools</text>
+  <line x1="950" y1="191" x2="980" y2="191" stroke="#64748b" stroke-width="1.6" marker-end="url(#toolArrow)" />
+  <text x="965" y="181" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="9.5" fill="#64748b">reply</text>
+
+  <text x="620" y="356" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#94a3b8">Register a tool once; bind it per flow. The agent only sees the tools the workflow allows.</text>
+</svg>

@@ -81,6 +81,10 @@ conversations, with a deterministic offline demo.
   (native client) and mainstream OpenAI-compatible vendors (DeepSeek, Qwen,
   Kimi, GLM, Doubao, ERNIE, MiniMax, SiliconFlow, OpenRouter, Gemini, Ollama
   and custom gateways) through provider presets.
+- **Integration docs:** Pillar 3 now explains the tool-based design with a
+  dedicated diagram: enterprise APIs are wrapped as typed tools, the `tools`
+  node binds what the flow allows, the agent calls them, and results return
+  to the model context and transcript.
 - **Positioning:** the README and hero banner now lead with visual workflow
   customization and retrieval-augmented answers; sanitize/review are documented
   as optional guardrail nodes rather than the main story.

@@ -17,7 +17,7 @@
 
 <br /><br />
 
-[Design](#design-in-one-page) · [Architecture](#architecture) · [Workflow](#pillar-1--design-the-workflow-visually) · [RAG](#pillar-2--ground-answers-in-your-documentation) · [Integrate](#pillar-3--integrate-with-the-enterprise-stack) · [Quick start](#quick-start) · [Deploy](#configuration-and-deployment) · [FAQ](#faq) · [Roadmap](#status-and-roadmap)
+[Design](#design-in-one-page) · [Architecture](#architecture) · [Workflow](#pillar-1--design-the-workflow-visually) · [RAG](#pillar-2--ground-answers-in-your-documentation) · [Integrate](#pillar-3--connect-enterprise-systems-through-tools) · [Quick start](#quick-start) · [Deploy](#configuration-and-deployment) · [FAQ](#faq) · [Roadmap](#status-and-roadmap)
 
 </div>
 
@@ -42,11 +42,11 @@ first-class retrieval — plus the integrations that put them to work.
 
 | 🧩 **Visual workflows** | 📚 **RAG by default** | 🔌 **It integrates, not replaces** |
 |---|---|---|
-| The conversation flow is saved data, not code. Operators drag nodes onto a canvas, connect them, and configure them in plain-language forms; a flow that cannot compile is rejected before it goes live. Saving hot-swaps the new workflow into the runtime — no redeploy. | Documentation is a first-class part of the product: upload support articles or point at an existing docs folder, retrieve heading-aware chunks with hybrid search, and let the agent answer with `[1]`, `[2]` citations. The demo ships 10 indexed articles so it works offline. | Identity comes from your IdP, actions go through your system APIs, data lives in your database, and the GUI is static files behind your nginx. Self-hosted, SQLite by default, no vendor lock-in. |
+| The conversation flow is saved data, not code. Operators drag nodes onto a canvas, connect them, and configure them in plain-language forms; a flow that cannot compile is rejected before it goes live. Saving hot-swaps the new workflow into the runtime — no redeploy. | Documentation is a first-class part of the product: upload support articles or point at an existing docs folder, retrieve heading-aware chunks with hybrid search, and let the agent answer with `[1]`, `[2]` citations. The demo ships 10 indexed articles so it works offline. | Identity comes from your IdP, actions go through typed **tools** bound in the workflow, data lives in your database, and the GUI is static files behind your nginx. Self-hosted, SQLite by default, no vendor lock-in. |
 
 ## Architecture
 
-<img src="docs/assets/architecture.svg" alt="Bridge-Agents architecture: channels connect to the runtime, whose visual flow and knowledge base integrate with existing enterprise systems" width="100%" />
+<img src="docs/assets/architecture.svg" alt="Bridge-Agents architecture: channels connect to the runtime, whose visual flow, knowledge base and tools connect to existing enterprise systems" width="100%" />
 
 The product is deliberately split into four planes:
 
@@ -54,10 +54,10 @@ The product is deliberately split into four planes:
   owned by operators, validated on save and hot-swapped into the runtime.
 - **Knowledge plane** — document ingestion, heading-aware chunking, the hybrid
   index, the retrieval node and citation rendering.
-- **Delivery plane** — model calls, tools, channels and the support desk
+- **Delivery plane** — model calls, tool execution, channels and the support desk
   ([`packages/bridge_agents`](packages/bridge_agents)).
-- **Integration plane** — identity, tools, database and static GUI deployment, so
-  the product fits an existing stack.
+- **Integration plane** — typed tools that adapt enterprise APIs, identity, database
+  and static GUI deployment, so the product fits an existing stack.
 
 ## Pillar 1 — Design the workflow visually
 
@@ -154,16 +154,57 @@ The demo ships with 10 fictional support articles (accounts, billing, refunds,
 desktop sync, sign-in/SSO, API/webhooks, security, SLAs) — 64 indexed chunks — so
 the retrieval path works offline without uploading anything.
 
-## Pillar 3 — Integrate with the enterprise stack
+## Pillar 3 — Connect enterprise systems through tools
 
 Bridge-Agents is a layer *next to* the systems an enterprise already runs, not a
-replacement for them.
+replacement for them. The integration design is **tool-based**: every enterprise
+capability is wrapped as a typed tool, the workflow's `tools` node binds the tools
+that are allowed in that flow, and the agent calls them when a conversation needs
+real system data or an action.
+
+<img src="docs/assets/tools-integration.svg" alt="Integration through tools: enterprise systems are exposed as typed tool adapters, bound by the workflow's tools node and called by the agent; results return to the model and transcript" width="100%" />
+
+### How a tool integration works
+
+1. **Register the tool** — a bundled adapter or a small Python extension exposes
+   one enterprise capability with a name, a description for the model, typed
+   arguments, credentials from the environment and a read/write scope.
+2. **Bind it in the flow** — the operator opens the `tools` node inspector and
+   selects which registered tools this workflow may use. The graph must route
+   `tool_call` for the agent to be able to call them.
+3. **Call it during the conversation** — the agent sees only the bound tools and
+   decides when to call one; arguments are validated against the tool schema.
+4. **Return the result** — the tool result goes back into the model context and is
+   streamed to the transcript, so the final answer can combine live system data
+   with retrieved documentation.
+
+### Tool design principles
+
+- **Narrow and typed** — one tool per business operation (`order_status`,
+  `create_ticket`, `customer_lookup`) with a JSON schema the model must follow.
+- **Read-only by default** — read tools are the normal starting point; write tools
+  are explicit and only exposed where the flow allows them.
+- **The system stays the source of truth** — tools call the existing API; the
+  runtime does not copy or rewrite enterprise data unless a write tool is invoked.
+- **Credentials stay server-side** — tool secrets live in the environment, never
+  in the flow JSON or the browser.
+- **Visible calls** — tool calls and results are streamed and stored in the
+  transcript, so support staff can see what the agent actually did.
+
+### What ships today
+
+Bundled tools: `get_current_time`, `calculate` and `search_docs` (the RAG tool).
+The admin API lists the tool catalog, the flow inspector binds tools per node, and
+tool calls/results stream to the transcript. New enterprise APIs are currently
+added as small Python tools; **declarative HTTP/OpenAPI tools** are the next step so
+simple read/write endpoints can be registered without writing Python.
 
 | Surface | How it connects | Status |
 |---|---|---|
 | Identity | Reuse an existing IdP: HS256 (local), RS256 PEM or external OIDC JWKS; three roles (customer, support, admin) | Shipped; browser OIDC login flow next |
 | Knowledge | Point `DOCS_DIR` at an existing docs folder or upload in Studio; hash embedder offline or any `/v1/embeddings` endpoint | Shipped |
-| System APIs | The `tools` node binds registered tools; tool output is streamed to the transcript and the model | Shipped for Python-registered tools; declarative HTTP/OpenAPI tools next |
+| System APIs / tools | The workflow's `tools` node binds registered tools; each tool wraps one enterprise API with typed arguments, and results return to the model and transcript | Shipped for Python-registered tools; declarative HTTP/OpenAPI tools next |
+| Tool catalog | Bundled `get_current_time` / `calculate` / `search_docs` plus Python-registered adapters; the admin API lists them for the flow inspector | Shipped |
 | Channels | Same-origin web chat (static GUI behind your nginx) and a signed Lark channel with two-way human replies | Shipped; Slack and a generic webhook API next |
 | Storage | SQLite by default; PostgreSQL / MySQL extras; uploads on disk or a mounted volume | Shipped |
 | Deployment | pip/uv packages (`bridge-agents`, `bridge-agents-server`), systemd unit, nginx reverse proxy, Docker Compose; the GUI is a static artifact | Shipped |
@@ -277,9 +318,9 @@ versioned web archive.
 
 Two Python distributions plus the static GUI:
 
-- **`bridge-agents`** — workflow pipeline, graph validation, retrieval, auth
-  verifiers, moderation adapters, injection guard, rate limiter, embeddable
-  `AgentRuntime` and testing fakes.
+- **`bridge-agents`** — workflow pipeline, graph validation, retrieval, tool
+  registry, auth verifiers, moderation adapters, injection guard, rate limiter,
+  embeddable `AgentRuntime` and testing fakes.
 - **`bridge-agents-server`** — FastAPI app, database models and CLI. Extras:
   `[postgres]`, `[mysql]`.
 - **Web UI** — React/Vite in `web/`, released as a static archive.
@@ -311,7 +352,7 @@ doubles. Details: [packages/bridge_agents/README.md](packages/bridge_agents/READ
 |---|---|---|
 | Visual workflow editing | ✅ validated drag-and-drop graph, hot-swapped | yes, but often closed and code-bound |
 | Grounded answers with citations | ✅ built-in RAG with upload/reindex and citations | usually an add-on or prompt-only |
-| Fits an enterprise stack | ✅ IdP, system tools, existing docs, database, own nginx | often a closed SaaS platform |
+| Fits an enterprise stack | ✅ typed tools for CRM/orders/tickets, IdP, existing docs, database, own nginx | often a closed SaaS platform |
 | Human handoff stops the AI | ✅ takeover cancels the pending reply | depends on the product |
 | Self-hosted and embeddable | ✅ pip packages + static GUI + one-command demo | usually not |
 
@@ -326,8 +367,9 @@ not an acceptable answer.
 | Shipped | Next |
 |---|---|
 | Visual flow editor with validation, node inspector, auto layout and JSON fallback | Flow version history and approvals |
-| RAG: heading-aware chunks, hybrid retrieval, citations, upload/reindex and full-text preview | Declarative HTTP/OpenAPI tools so operators can wire more systems without Python |
+| RAG: heading-aware chunks, hybrid retrieval, citations, upload/reindex and full-text preview | Reranking and per-tenant knowledge bases |
 | Studio: knowledge panel, 15 model provider presets, saved and validated API profiles | Browser OIDC login flow (JWKS/RS256 verification already works) |
+| Tool-based enterprise integration: tool catalog, `tools` node binding, tool-call streaming | Declarative HTTP/OpenAPI tools for new enterprise APIs |
 | Customer demo with nickname entry, conversation history, attachments and streaming | PyPI publishing, container images and release automation |
 | Support desk with takeover, AI/human labels and image transcript | Slack adapter, generic webhook API and an embeddable widget |
 | Support desk with takeover, AI/human labels and image transcript | Database migrations (Alembic) and a `db upgrade` command |
@@ -361,8 +403,10 @@ more provider presets ship in Studio. Anthropic is supported through a compatibl
 gateway.
 
 **Does it replace my CRM / order system / IdP?**
-No. It calls existing systems through tools and reuses your IdP, documentation,
-database and web server. Read-only integrations are the normal starting point.
+No. Existing systems are exposed as typed **tools**; the workflow binds the tools it
+allows, the agent calls them when needed, and results return to the conversation.
+Your IdP, documentation, database and web server are reused. Read-only tools are
+the normal starting point.
 
 **Do I need Docker or an API key to try it?**
 No. `uv sync && uv run bridge-agents demo` runs offline with a deterministic mock
