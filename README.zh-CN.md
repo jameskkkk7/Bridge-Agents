@@ -39,37 +39,7 @@ Bridge-Agents 正是围绕这三件事设计的。下面的 README 逐条解释�
 
 ## 架构
 
-```mermaid
-flowchart LR
-    subgraph Channels["渠道"]
-        Web["客户聊天<br/>（静态 GUI）"]
-        Lark["飞书 / 聊天渠道"]
-    end
-
-    subgraph Runtime["Bridge-Agents 运行时"]
-        Flow["流程编排<br/>system · retrieval · agent · tools · custom"]
-        Gate["审核与内容安全门禁"]
-        Desk["客服台<br/>接管 · AI/真人标注"]
-    end
-
-    subgraph Enterprise["企业既有系统"]
-        IdP["身份提供方"]
-        APIs["CRM · 订单 · 工单<br/>（tools）"]
-        Docs["产品文档"]
-        DB[("PostgreSQL / MySQL")]
-    end
-
-    Web --> Flow
-    Lark --> Flow
-    Flow <--> APIs
-    Docs --> Flow
-    Flow --> Gate --> Web
-    Gate --> Lark
-    Gate <--> Desk
-    IdP --> Web
-    IdP --> Desk
-    Runtime --- DB
-```
+<img src="docs/assets/architecture.svg" alt="Bridge-Agents 架构：渠道连接运行时，运行时对接企业既有系统" width="100%" />
 
 产品刻意拆成四个平面：
 
@@ -117,18 +87,7 @@ flowchart LR
 
 "审核"不是提示词里的一句话，而是运行时里一个有明确契约、缓冲与失败策略的阶段。
 
-```mermaid
-flowchart LR
-    Draft["助手草稿"] --> Local["1 · 本地硬门<br/>敏感词"]
-    Local --> Mod["2 · 第三方审核<br/>可选 · 5 家厂商"]
-    Mod --> Judge["3 · LLM 审核器<br/>策略提示词"]
-    Judge -->|通过| Stream["流式发送给客户"]
-    Judge -->|拦截| Retry{"还有重试预算？"}
-    Retry -->|是| Draft
-    Retry -->|否| Fallback["兜底文案"]
-    Fallback --> Stream
-    Stream -.->|人工接管| Human["同事直接回复"]
-```
+<img src="docs/assets/review-gate.svg" alt="审核门禁：助手草稿依次经过本地硬门、第三方审核与 LLM 审核器；通过则发送，拦截则重试或兜底" width="100%" />
 
 ### 分层控制
 

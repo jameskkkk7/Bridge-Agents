@@ -81,6 +81,9 @@ conversations, with a deterministic offline demo.
   (native client) and mainstream OpenAI-compatible vendors (DeepSeek, Qwen,
   Kimi, GLM, Doubao, ERNIE, MiniMax, SiliconFlow, OpenRouter, Gemini, Ollama
   and custom gateways) through provider presets.
+- **Docs:** replaced the README Mermaid diagrams with hand-drawn SVG
+  illustrations for the system architecture and the review gate, using the
+  product palette and clearer left-to-right flows.
 - **UI polish:** the top bar is now a full-width, sticky frosted-glass header
   with a translucent gradient, so scrolled content stays blurred behind it
   instead of showing through the top gap.

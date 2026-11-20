@@ -45,37 +45,7 @@ this README explains each one and how it is implemented.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    subgraph Channels
-        Web["Customer chat<br/>(static GUI)"]
-        Lark["Lark / chat channel"]
-    end
-
-    subgraph Runtime["Bridge-Agents runtime"]
-        Flow["Flow graph<br/>system · retrieval · agent · tools · custom"]
-        Gate["Review & moderation gate"]
-        Desk["Support desk<br/>takeover, AI/human labels"]
-    end
-
-    subgraph Enterprise["Existing enterprise systems"]
-        IdP["Identity provider"]
-        APIs["CRM · orders · tickets<br/>(tools)"]
-        Docs["Product documentation"]
-        DB[("PostgreSQL / MySQL")]
-    end
-
-    Web --> Flow
-    Lark --> Flow
-    Flow <--> APIs
-    Docs --> Flow
-    Flow --> Gate --> Web
-    Gate --> Lark
-    Gate <--> Desk
-    IdP --> Web
-    IdP --> Desk
-    Runtime --- DB
-```
+<img src="docs/assets/architecture.svg" alt="Bridge-Agents architecture: channels connect to the runtime, which integrates with existing enterprise systems" width="100%" />
 
 The product is deliberately split into four planes:
 
@@ -150,18 +120,7 @@ more of the integration work can move from IT to operations.
 "Review" is not a prompt instruction; it is a stage in the runtime with its own
 contract, buffering and failure policy.
 
-```mermaid
-flowchart LR
-    Draft["Assistant draft"] --> Local["1 · local hard gate<br/>banned words"]
-    Local --> Mod["2 · provider moderation<br/>optional · 5 vendors"]
-    Mod --> Judge["3 · LLM reviewer<br/>policy prompt"]
-    Judge -->|pass| Stream["Stream to customer"]
-    Judge -->|block| Retry{"retry budget?"}
-    Retry -->|yes| Draft
-    Retry -->|no| Fallback["Fallback message"]
-    Fallback --> Stream
-    Stream -.->|human takeover| Human["Teammate replies"]
-```
+<img src="docs/assets/review-gate.svg" alt="Review gate: an assistant draft passes the local hard gate, provider moderation and LLM reviewer; approved replies stream to the customer, blocked drafts retry or fall back" width="100%" />
 
 ### Layered controls
 

@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="archTitle archDesc">
+  <title id="archTitle">Bridge-Agents architecture</title>
+  <desc id="archDesc">Customer and Lark channels connect to the Bridge-Agents runtime, where the flow graph, review gate and support desk sit between the channels and existing enterprise systems such as documentation, CRM, identity and the database.</desc>
+
+  <defs>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.07" />
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b" />
+    </marker>
+    <marker id="arrowIndigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5" />
+    </marker>
+  </defs>
+
+  <rect x="8" y="8" width="1184" height="604" rx="24" fill="#f8fafc" stroke="#e2e8f0" />
+  <text x="40" y="50" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="20" font-weight="700" fill="#0f172a">Bridge-Agents architecture</text>
+  <text x="40" y="74" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="12" fill="#64748b">Channels ↔ runtime (review before delivery) ↔ existing enterprise systems</text>
+
+  <!-- Channels -->
+  <rect x="40" y="110" width="220" height="300" rx="16" fill="#f0f9ff" stroke="#bae6fd" />
+  <text x="60" y="140" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="700" fill="#0369a1">Channels</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="60" y="165" width="180" height="95" rx="12" fill="#ffffff" stroke="#e2e8f0" />
+    <rect x="60" y="165" width="4" height="95" rx="2" fill="#38bdf8" />
+  </g>
+  <rect x="74" y="179" width="28" height="24" rx="7" fill="#e0f2fe" />
+  <path d="M80 186h16M80 191h10" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+  <text x="112" y="190" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#0f172a">Customer chat</text>
+  <text x="112" y="209" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">static GUI · same origin</text>
+  <text x="112" y="226" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#94a3b8">streaming + images</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="60" y="285" width="180" height="95" rx="12" fill="#ffffff" stroke="#e2e8f0" />
+    <rect x="60" y="285" width="4" height="95" rx="2" fill="#38bdf8" />
+  </g>
+  <rect x="74" y="299" width="28" height="24" rx="7" fill="#e0f2fe" />
+  <path d="M80 305h16v10H88l-4 4v-4h-4z" fill="none" stroke="#0284c7" stroke-width="1.8" stroke-linejoin="round" />
+  <text x="112" y="310" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#0f172a">Lark / chat</text>
+  <text x="112" y="329" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">signed events</text>
+  <text x="112" y="346" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#94a3b8">two-way human replies</text>
+
+  <!-- Runtime -->
+  <rect x="320" y="110" width="520" height="300" rx="16" fill="#eef2ff" stroke="#c7d2fe" />
+  <text x="340" y="140" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="700" fill="#4338ca">Bridge-Agents runtime</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="340" y="165" width="180" height="175" rx="12" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <circle cx="358" cy="186" r="6" fill="#6366f1" />
+  <text x="372" y="191" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#0f172a">Flow graph</text>
+  <text x="356" y="211" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">configurable nodes</text>
+  <g font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#4338ca">
+    <rect x="354" y="225" width="72" height="22" rx="11" fill="#eef2ff" stroke="#c7d2fe" />
+    <text x="390" y="240" text-anchor="middle">system</text>
+    <rect x="434" y="225" width="72" height="22" rx="11" fill="#eef2ff" stroke="#c7d2fe" />
+    <text x="470" y="240" text-anchor="middle">retrieval</text>
+    <rect x="354" y="253" width="72" height="22" rx="11" fill="#eef2ff" stroke="#c7d2fe" />
+    <text x="390" y="268" text-anchor="middle">agent</text>
+    <rect x="434" y="253" width="72" height="22" rx="11" fill="#eef2ff" stroke="#c7d2fe" />
+    <text x="470" y="268" text-anchor="middle">tools</text>
+    <rect x="354" y="281" width="72" height="22" rx="11" fill="#eef2ff" stroke="#c7d2fe" />
+    <text x="390" y="296" text-anchor="middle">custom</text>
+  </g>
+  <text x="356" y="325" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#94a3b8">validated before activation</text>
+
+  <line x1="520" y1="235" x2="548" y2="235" stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow)" />
+  <text x="524" y="226" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#64748b">draft</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="550" y="165" width="140" height="175" rx="12" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <path d="M566 181l10-5 10 5v8c0 7-4 12-10 15-6-3-10-8-10-15z" fill="#eef2ff" stroke="#6366f1" stroke-width="1.6" />
+  <text x="592" y="191" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f172a">Review gate</text>
+  <g font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#475569">
+    <text x="566" y="221">local hard gate</text>
+    <text x="566" y="240">provider moderation</text>
+    <text x="566" y="259">LLM reviewer</text>
+    <text x="566" y="278">fallback / retry</text>
+  </g>
+  <rect x="566" y="298" width="98" height="22" rx="11" fill="#eef2ff" stroke="#c7d2fe" />
+  <text x="615" y="313" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#4338ca">buffered</text>
+
+  <line x1="690" y1="235" x2="708" y2="235" stroke="#64748b" stroke-width="1.6" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <text x="699" y="226" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#64748b">takeover</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="710" y="165" width="110" height="175" rx="12" fill="#ffffff" stroke="#c7d2fe" />
+  </g>
+  <circle cx="728" cy="185" r="7" fill="none" stroke="#6366f1" stroke-width="1.8" />
+  <path d="M718 204c0-6 4-10 10-10s10 4 10 10" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" />
+  <text x="742" y="188" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f172a">Support</text>
+  <text x="742" y="204" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f172a">desk</text>
+  <g font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#475569">
+    <text x="726" y="230">takeover</text>
+    <text x="726" y="249">AI / human</text>
+    <text x="726" y="268">labels</text>
+  </g>
+
+  <text x="340" y="372" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#6366f1">Buffered streaming · bounded retries · safe fallback</text>
+  <text x="340" y="392" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10.5" fill="#94a3b8">No customer-visible text leaves before the gate decides.</text>
+
+  <!-- Enterprise systems -->
+  <rect x="900" y="110" width="260" height="430" rx="16" fill="#fffbeb" stroke="#fde68a" />
+  <text x="920" y="140" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13.5" font-weight="700" fill="#b45309">Existing enterprise systems</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="920" y="165" width="220" height="78" rx="12" fill="#ffffff" stroke="#fde68a" />
+    <rect x="920" y="165" width="4" height="78" rx="2" fill="#f59e0b" />
+  </g>
+  <rect x="934" y="179" width="24" height="20" rx="5" fill="#fef3c7" />
+  <path d="M940 185h12M940 190h8M940 195h10" stroke="#b45309" stroke-width="1.8" stroke-linecap="round" />
+  <text x="968" y="189" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f172a">Product documentation</text>
+  <text x="968" y="208" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">retrieval · citations</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="920" y="260" width="220" height="78" rx="12" fill="#ffffff" stroke="#fde68a" />
+    <rect x="920" y="260" width="4" height="78" rx="2" fill="#f59e0b" />
+  </g>
+  <rect x="934" y="274" width="24" height="20" rx="5" fill="#fef3c7" />
+  <path d="M940 281l4-4 4 4M944 277v8M952 281l4 4-4 4" fill="none" stroke="#b45309" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="968" y="284" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f172a">CRM · orders · tickets</text>
+  <text x="968" y="303" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">tool calls</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="920" y="355" width="220" height="78" rx="12" fill="#ffffff" stroke="#fde68a" />
+    <rect x="920" y="355" width="4" height="78" rx="2" fill="#f59e0b" />
+  </g>
+  <rect x="934" y="369" width="24" height="20" rx="5" fill="#fef3c7" />
+  <circle cx="946" cy="376" r="4" fill="none" stroke="#b45309" stroke-width="1.6" />
+  <path d="M938 386c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="#b45309" stroke-width="1.6" stroke-linecap="round" />
+  <text x="968" y="379" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f172a">Identity provider</text>
+  <text x="968" y="398" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">SSO · JWT · roles</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="920" y="450" width="220" height="78" rx="12" fill="#ffffff" stroke="#fde68a" />
+    <rect x="920" y="450" width="4" height="78" rx="2" fill="#f59e0b" />
+  </g>
+  <path d="M938 470c0-4 5-7 12-7s12 3 12 7v10c0 4-5 7-12 7s-12-3-12-7z" fill="none" stroke="#b45309" stroke-width="1.6" />
+  <path d="M938 470c0 4 5 7 12 7s12-3 12-7" fill="none" stroke="#b45309" stroke-width="1.6" />
+  <text x="968" y="474" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f172a">PostgreSQL / MySQL</text>
+  <text x="968" y="493" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#64748b">conversations · settings</text>
+
+  <!-- Connections -->
+  <line x1="260" y1="212" x2="320" y2="212" stroke="#64748b" stroke-width="1.6" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <text x="290" y="202" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#64748b">chat</text>
+
+  <line x1="320" y1="332" x2="260" y2="332" stroke="#64748b" stroke-width="1.6" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <text x="290" y="322" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#64748b">events</text>
+
+  <line x1="840" y1="290" x2="900" y2="290" stroke="#4f46e5" stroke-width="1.8" marker-start="url(#arrowIndigo)" marker-end="url(#arrowIndigo)" />
+  <text x="870" y="279" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="10" fill="#4f46e5">integrations</text>
+
+  <text x="600" y="592" text-anchor="middle" font-family="Kumbh Sans, Noto Sans SC, Inter, system-ui, sans-serif" font-size="11" fill="#94a3b8">The runtime is the control and safety layer; enterprise systems stay the source of truth.</text>
+</svg>
