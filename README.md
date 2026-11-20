@@ -4,9 +4,9 @@
 
 # Bridge-Agents
 
-**AI support that never sends a reply you cannot stand behind.**
+**A control plane for AI customer conversations.**
 
-<sub>Self-hosted, review-gated agent runtime for customer conversations — orchestrate the flow, gate the output, hand off to humans.<br />The bridge between mature enterprise systems and AI support agents.</sub>
+<sub>Operators shape the flow. The runtime reviews every reply before a customer sees it.<br />Your existing enterprise systems stay the source of truth.</sub>
 
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="Apache-2.0" />
 <img src="https://img.shields.io/badge/self--hosted-yes-2ea043?style=for-the-badge" alt="Self-hosted" />
@@ -17,115 +17,242 @@
 
 <br /><br />
 
-[Why Bridge-Agents](#why-bridge-agents) · [How it works](#how-it-works) · [Demo](#the-30-second-demo) · [Quick start](#quick-start) · [Deploy](#deploying) · [Packages](#packages-and-embedding) · [Where it fits](#where-it-fits) · [FAQ](#faq) · [Roadmap](#roadmap)
+[Design](#design-in-one-page) · [Architecture](#architecture) · [Customize](#pillar-1--operators-customize-the-flow) · [Review](#pillar-2--every-reply-passes-review) · [Integrate](#pillar-3--integrate-with-the-enterprise-stack) · [Quick start](#quick-start) · [Deploy](#configuration-and-deployment) · [FAQ](#faq) · [Roadmap](#status-and-roadmap)
 
 </div>
 
 ## The problem
 
-AI support is fast, cheap and one bad sentence away from a refund, a compliance
-review or a screenshot on social media. Most tools hand you a bot and hope for
-the best. Bridge-Agents is built around a different question: **who checks the
-reply before the customer sees it?**
+Enterprises do not lack AI models. They lack a place to **put AI into a customer
+conversation safely**, where three groups of people can work together:
 
-## Why Bridge-Agents
+- **Operations staff** need to change what the assistant does — routing,
+  knowledge, tone, escalation — without filing a software ticket.
+- **Reviewers and support leads** need to know that no reply reaches a customer
+  before it has been checked, and need a fast path to take over.
+- **IT and platform teams** need the AI to sit next to the systems they already
+  run (identity provider, CRM, order system, ticketing, documentation) instead of
+  replacing them.
 
-| 🛡 **Review before send** | 🙋 **Humans stay in control** |
-|---|---|
-| A second model reviews every draft against your policy. Approved text streams to the customer; a rejected draft is replaced by your fallback and never shown. | A teammate can take over a conversation and the AI's pending answer is cancelled — then reply from the support desk or the bound Lark chat. The customer gets a person, not a duplicate reply. |
-| 📚 **Answers with sources** | 🧩 **Change the flow, not the code** |
-| Every reply is grounded in your documentation. The retriever finds relevant passages, the assistant cites them as [1], [2], and the review gate still checks the wording. | The conversation flow is saved configuration. Operators rewire it on a drag-and-drop canvas; a flow that cannot run is refused before it goes live. A JSON editor remains for advanced edits. |
+Bridge-Agents is designed around exactly those three requirements. The rest of
+this README explains each one and how it is implemented.
 
-Also in the box:
+## Design in one page
 
-- **Provider moderation:** the local banned-word hard gate plus optional OpenAI,
-  Azure AI Content Safety, Google Perspective, Alibaba Cloud and Tencent Cloud
-  checks, with fail-open / fail-closed policy and per-provider text chunking.
-- **Mainstream model providers:** OpenAI, Azure OpenAI (native client), DeepSeek,
-  Qwen, Kimi, Zhipu GLM, Doubao, ERNIE, MiniMax, SiliconFlow, OpenRouter, Gemini,
-  Anthropic gateways, Ollama and any OpenAI-compatible endpoint.
-- **A demo customers can actually use:** nickname entry (no sign-in), parallel
-  conversations in a sidebar, image attachments, streaming replies, bilingual
-  UI, light/dark themes and phone layouts.
-- **A support desk built for clarity:** AI and human replies are labelled
-  differently, takeover state is visible per conversation, and images render in
-  the transcript.
+| 🧩 **Operators customize** | 🛡 **The runtime reviews** | 🔌 **It integrates, not replaces** |
+|---|---|---|
+| The conversation flow is saved data, not code. Business users rewire it on a visual canvas; a flow that cannot compile is rejected before it goes live. Model, prompt, knowledge and moderation settings are forms in the Studio, applied to the next message. | Every customer-visible reply passes layered checks: a deterministic hard gate, optional third-party moderation, an LLM reviewer, and human takeover. Text is buffered until the gate decides; a rejected draft is replaced by a safe fallback and never streamed. | Identity comes from your IdP, answers from your documentation, actions through your system APIs, data in your database, and the GUI is static files behind your nginx. Self-hosted, SQLite by default, no vendor lock-in. |
 
-Plus the boring-but-important part: **your data stays yours.** Self-hosted,
-SQLite by default (PostgreSQL/MySQL extras), no external calls in demo mode, and
-roles for customers, support staff and admins. The runtime is also a pip package
-with an embeddable async API.
-
-## How it works
+## Architecture
 
 ```mermaid
-flowchart TD
-    customer(["Customer message"]) --> retrieve["Knowledge base returns cited passages"]
-    retrieve --> assistant["AI assistant drafts a reply"]
-    assistant --> review{"Policy review"}
-    review -->|approved| sent(["Reply sent to customer"])
-    review -->|blocked| fallback["Safe fallback message"]
-    fallback --> sent
-    assistant -.->|human takes over| teammate(["Teammate answers"])
-    teammate --> sent
+flowchart LR
+    subgraph Channels
+        Web["Customer chat<br/>(static GUI)"]
+        Lark["Lark / chat channel"]
+    end
+
+    subgraph Runtime["Bridge-Agents runtime"]
+        Flow["Flow graph<br/>system · retrieval · agent · tools · custom"]
+        Gate["Review & moderation gate"]
+        Desk["Support desk<br/>takeover, AI/human labels"]
+    end
+
+    subgraph Enterprise["Existing enterprise systems"]
+        IdP["Identity provider"]
+        APIs["CRM · orders · tickets<br/>(tools)"]
+        Docs["Product documentation"]
+        DB[("PostgreSQL / MySQL")]
+    end
+
+    Web --> Flow
+    Lark --> Flow
+    Flow <--> APIs
+    Docs --> Flow
+    Flow --> Gate --> Web
+    Gate --> Lark
+    Gate <--> Desk
+    IdP --> Web
+    IdP --> Desk
+    Runtime --- DB
 ```
 
-1. The retriever finds relevant passages in your knowledge base and the
-   assistant drafts an answer that cites them.
-2. Before a word reaches the customer, a reviewer checks the draft against your
-   policy — the text is buffered while this happens.
-3. Approved replies stream naturally. Rejected replies become a safe,
-   pre-written fallback. When a conversation needs a human, a teammate takes
-   over and the AI stops.
+The product is deliberately split into four planes:
 
-The flow is a graph of nodes (`system`, `retrieval`, `agent`, `tools`, `custom`,
-`sanitize`, `review`, start/end) that you can edit visually or as JSON; see
-[docs/architecture.md](docs/architecture.md) for the full contract.
+- **Control plane** — the editable graph, prompt, model and moderation settings.
+  Owned by operators, validated on save, hot-swapped into the runtime.
+- **Data plane** — retrieval, model calls, tools and channel delivery
+  ([`packages/bridge_agents`](packages/bridge_agents)).
+- **Safety plane** — the review node, banned words, provider moderation and human
+  takeover, applied before the customer sees a reply.
+- **Integration plane** — identity, tools, knowledge, database and static GUI
+  deployment, so the product fits an existing stack.
 
-## The 30-second demo
+## Pillar 1 — Operators customize the flow
 
-> **Demo GIF slot: [`docs/screenshots/demo.gif`](docs/screenshots/README.md).**
-> The walkthrough is recorded from the real UI at release time, never from a
-> mock-up.
+The starting point is that **a flow is configuration, not a deploy**. Operators
+work in the Studio (`/admin/studio`), not in the codebase.
 
-1. A customer enters a nickname, then asks *"How do I activate Widget Pro?"* —
-   the answer cites the knowledge base passage as [1].
-2. They open a second conversation from the sidebar and ask *"Can you guarantee
-   a refund?"* — the draft promises a refund, the review gate blocks it, and the
-   customer sees a policy-safe fallback instead.
-3. A teammate takes over from the support desk, the AI stops writing, and the
-   human answers directly. The transcript marks AI replies and human replies
-   separately.
+### The flow is a validated graph
+
+A conversation is a graph of nodes; the canvas edits the same JSON configuration
+the runtime compiles.
+
+| Node | What an operator uses it for |
+|---|---|
+| `system` | Set the assistant's role prompt |
+| `retrieval` | Ground answers in the knowledge base (top-k, score threshold) |
+| `agent` | Generate the customer-facing reply |
+| `tools` | Let the agent call registered system tools |
+| `custom` | Add an extra model step (translation, classification, rewrite) |
+| `sanitize` | Mask banned words and optionally run provider moderation |
+| `review` | Gate the reply: accept, retry, fallback or pass through |
+| `start` / `end` | Entry and exit |
+
+Operators add nodes from a palette, connect them (including condition handles
+such as `respond`, `tool_call`, `pass`, `block`), drag/auto-layout them and edit
+fields in a plain-language inspector. Advanced users get a JSON editor for the
+same configuration.
+
+**Safety by construction:** the graph is compiled and validated before it is
+saved. A broken reference, missing agent role or unroutable edge is rejected —
+the previous flow keeps running. Saving hot-swaps the new graph; no redeploy, no
+restart.
+
+### Studio covers the rest of the operator job
+
+- **Knowledge** — upload documents, reindex, search-preview the retrieval index;
+  point `DOCS_DIR` at an existing documentation folder.
+- **Model** — pick a provider preset (OpenAI, Azure OpenAI and 13 more), endpoint
+  and model; the API key is stored encrypted and never returned by the API.
+- **Support prompt** — edit the agent's system prompt in the same place.
+- **Moderation** — enable provider moderation per sanitize node, choose the
+  vendor, fallback text and fail-open/fail-closed policy.
+- **Roles and language** — support staff and admins edit; customers only chat.
+  The whole Studio and customer UI ship in English and 简体中文, light/dark, and
+  responsive layouts.
+
+### What still needs a developer (today)
+
+New *system capabilities* — a new CRM connector, a custom node kind, a new
+channel — are Python extensions registered in the server. Operators then bind and
+configure them in the flow. Making those integrations declarative
+(OpenAPI/HTTP tool definitions, custom nodes as plugins) is on the roadmap, so
+more of the integration work can move from IT to operations.
+
+## Pillar 2 — Every reply passes review
+
+"Review" is not a prompt instruction; it is a stage in the runtime with its own
+contract, buffering and failure policy.
+
+```mermaid
+flowchart LR
+    Draft["Assistant draft"] --> Local["1 · local hard gate<br/>banned words"]
+    Local --> Mod["2 · provider moderation<br/>optional · 5 vendors"]
+    Mod --> Judge["3 · LLM reviewer<br/>policy prompt"]
+    Judge -->|pass| Stream["Stream to customer"]
+    Judge -->|block| Retry{"retry budget?"}
+    Retry -->|yes| Draft
+    Retry -->|no| Fallback["Fallback message"]
+    Fallback --> Stream
+    Stream -.->|human takeover| Human["Teammate replies"]
+```
+
+### Layered controls
+
+| Layer | Mechanism | Behaviour |
+|---|---|---|
+| Local hard gate | `sanitize` masks configured words in every message | Deterministic, free, always on; cannot be disabled by an outage |
+| Provider moderation | OpenAI-compatible, Azure AI Content Safety, Google Perspective, Alibaba Cloud, Tencent Cloud | Optional; fail-open by default or fail-closed per node; long replies are split at provider limits and results aggregated |
+| LLM reviewer | `review` node judges the latest draft against its policy prompt | Accept, bounded retry, safe fallback or pass-through; reviewer reasoning is never sent to the customer |
+| Human takeover | Support desk "take over" | Cancels the pending AI reply; a teammate answers and the transcript marks AI vs human messages |
+
+Everything is configurable from the Studio: the reviewer prompt, retry budget,
+fallback text, banned words, moderation vendor, thresholds and fail policy. The
+defaults are safe: rejected drafts are replaced, not silently dropped, and the
+retry count is bounded.
+
+### What the design guarantees — and what it does not (yet)
+
+- **Guaranteed:** buffered streaming while a gate node is active, so a rejected
+  draft is never sent first; reviewer output and provider keys are not exposed to
+  customers; every stored message records whether it came from a customer, the AI
+  or a human; the runtime keeps working if the moderation provider fails, according
+  to the configured policy.
+- **Not yet:** a dedicated immutable audit log/export, flow version history with
+  approvals and one-click rollback, and reviewer decision dashboards. The message
+  store and labels are the foundation; the audit/approval workflow is next.
+
+## Pillar 3 — Integrate with the enterprise stack
+
+Bridge-Agents is a layer *next to* the systems an enterprise already runs, not a
+replacement for them.
+
+| Surface | How it connects | Status |
+|---|---|---|
+| Identity | Reuse an existing IdP: HS256 (local), RS256 PEM or external OIDC JWKS; three roles (customer, support, admin) | Shipped; browser OIDC login flow next |
+| Knowledge | Point `DOCS_DIR` at an existing docs folder or upload in Studio; hash embedder offline or any `/v1/embeddings` endpoint | Shipped |
+| System APIs | The `tools` node binds registered tools; tool output is streamed to the transcript and the model | Shipped for Python-registered tools; declarative HTTP/OpenAPI tools next |
+| Channels | Same-origin web chat (static GUI behind your nginx) and a signed Lark channel with two-way human replies | Shipped; Slack and a generic webhook API next |
+| Storage | SQLite by default; PostgreSQL / MySQL extras; uploads on disk or a mounted volume | Shipped |
+| Deployment | pip/uv packages (`bridge-agents`, `bridge-agents-server`), systemd unit, nginx reverse proxy, Docker Compose; the GUI is a static artifact | Shipped |
+| API contract | REST + WebSocket under `/api/v1` and `/ws`; `/api/v1/meta` version handshake; `/health` | Shipped |
+| Configuration | TOML + environment variables with standard precedence; secrets only in env or encrypted runtime settings | Shipped |
+| Extensibility | Protocols for token verifiers, chat models (OpenAI-compatible), moderation adapters, channels; `create_app()` and `AgentRuntime` | Shipped |
+
+### Non-invasive by design
+
+- **Your systems stay the source of truth.** The runtime reads through tools and
+  never rewrites enterprise data unless an operator's tool explicitly does so.
+  Read-only connectors are the normal starting point.
+- **No data leaves your infrastructure in demo/offline mode.** The default model,
+  embedder and channels run locally; external providers are opt-in.
+- **No new gateway required.** Deploy the static GUI into the existing nginx and
+  proxy `/api`/`/ws` to the Python service on a private port. Same origin, no CORS.
+- **Version compatibility is explicit.** The GUI reads `/api/v1/meta`; server and
+  GUI can be released independently as long as `min_web_version` is respected.
+- **Secrets stay out of the UI and the database by default.** Keys live in the
+  environment, or encrypted at rest when saved through Studio → Settings.
+
+## One story, three pillars
+
+1. An operator opens Studio, adds a `tools` node so the agent can look up order
+   status, moves the `review` node after the new step, and saves. The graph is
+   validated and hot-swapped — no deploy. *(Customize)*
+2. A customer asks a question. Retrieval finds the policy passage, the agent
+   drafts a cited answer, the local gate and the LLM reviewer check it, and only
+   then is the answer streamed. *(Review)*
+3. The customer asks for a refund guarantee the policy does not cover. The
+   reviewer blocks the draft and the configured fallback is sent; the transcript
+   records what happened. A teammate takes over and the AI stops. *(Review +
+   human control)*
+4. The order lookup itself is a call into the existing order system; identity
+   comes from the company IdP; conversations are stored in the company database;
+   the GUI is served by the company nginx. *(Integrate)*
 
 ## Quick start
 
 ### One command (local, no Docker)
 
-Requirements: Python 3.11, [uv](https://github.com/astral-sh/uv), and Node.js
-only for the first web build.
+Requirements: Python 3.11, [uv](https://github.com/astral-sh/uv) and Node.js for
+the first web build only.
 
 ```bash
 git clone <repository-url> bridge-agents
-cd Bridge-Agents
+cd bridge-agents
 uv sync
 uv run bridge-agents demo
 ```
 
-The first run copies `.env.example` to `.env`, builds the web UI when needed and
-starts the deterministic mock model plus the API. One process serves both the UI
-and the API:
+The first run creates `.env` from `.env.example`, builds the GUI and starts the
+deterministic mock model plus the API. One process serves both:
 
-- **http://localhost:8000/** — customer entry
-- **http://localhost:8000/admin** — support desk; Studio under `/admin/studio`
+- **http://localhost:8000/** — customer chat
+- **http://localhost:8000/admin** — support desk; Studio at `/admin/studio`
 - **http://localhost:8000/health** — health check
 
-Useful details:
-
-- `uv run bridge-agents doctor` checks the local prerequisites (Python, Node, `.env`,
-  web build, ports).
-- `bridge-agents demo --port 18000 --mock-port 8002` moves the ports;
-  `--no-build` skips the web build.
-- `make demo` is the same command; `make help` lists the other targets.
+`bridge-agents demo --port 18000 --mock-port 8002`, `--no-build`, `make demo`,
+`make help` and `bridge-agents doctor` cover the common variations.
 
 ### One command (Docker)
 
@@ -133,81 +260,39 @@ Useful details:
 docker compose up --build
 ```
 
-This starts the API, the web GUI and a deterministic mock model, so everything
-runs offline with no API key:
+Customer UI at **http://localhost/**, staff portal at **http://localhost/admin**,
+API health at **http://localhost:8000/health**. The stack runs offline with a mock
+model and stores conversations on a named volume.
 
-- **http://localhost/** — customer entry
-- **http://localhost/admin** — staff portal
-- **http://localhost:8000/health** — API health
-
-Conversations live on a named volume, so `docker compose restart api` keeps your
-data. Set `WEB_PORT` / `API_PORT` when the default ports are taken.
-
-### Manual development (API + Vite hot reload)
+### Manual development
 
 ```bash
 uv sync
-cp .env.example .env          # set ALLOW_DEV_LOGIN=true for the demo login
+cp .env.example .env          # ALLOW_DEV_LOGIN=true for the demo login
 uv run bridge-agents init-db
-uv run bridge-agents serve --reload        # API + built UI on :8000
+uv run bridge-agents serve --reload       # API + built UI on :8000
+npm --prefix web install && npm --prefix web run dev   # Vite on :5173
 ```
 
-For front-end hot reload run the Vite dev server in a second terminal; it proxies
-`/api` and `/ws` to the API:
+## Configuration and deployment
 
-```bash
-npm --prefix web install
-npm --prefix web run dev                   # http://localhost:5173
-```
+Configuration precedence is **CLI arguments > environment variables > `.env` >
+`bridge-agents.toml` > defaults**. `bridge-agents init` generates a starter TOML
+file and a secrets-only `.env`; `bridge-agents config check` validates the
+effective configuration (it fails on production-unsafe defaults).
+See [.env.example](.env.example), [bridge-agents.toml.example](bridge-agents.toml.example)
+and [docs/architecture.md](docs/architecture.md) for every setting.
 
-## Configuration
-
-Non-secret settings can live in `bridge-agents.toml` (see
-[bridge-agents.toml.example](bridge-agents.toml.example)); secrets stay in `.env`
-or the environment. Precedence:
-
-**CLI arguments > environment variables > `.env` > `bridge-agents.toml` > defaults**
-
-Point the app at a file with `--config PATH` or `BRIDGE_CONFIG`. Generate a
-starter pair with `bridge-agents init` and validate it with
-`bridge-agents config check`.
-
-Common switches:
-
-| Variable | Default | What it changes |
-|---|---|---|
-| `APP_ENV` | `development` | `production` disables the demo login and tightens defaults |
-| `BRIDGE_CONFIG` | `bridge-agents.toml` | optional non-secret config file |
-| `DATABASE_URL` | local SQLite file | switch to PostgreSQL or MySQL |
-| `AUTH_VERIFIER` / `JWT_*` | HS256 | local secret, RS256 PEM key or external OIDC JWKS |
-| `ALLOW_DEV_LOGIN` | `false` | demo login; forced off in production |
-| `LLM_PROVIDER` / `OPENAI_*` | `openai` / mock model | provider preset, endpoint, model, key, timeout |
-| `MODERATION_*` | disabled | provider moderation keys, ranges and host allow-list |
-| `RAG_*` | hash embedder | retrieval chunking, top-k, embeddings endpoint |
-| `WEB_DIST_DIR` | `web/dist` | built GUI served by the API; empty disables static serving |
-| `LARK_*` | disabled | signed Lark webhook and support commands |
-
-Every setting is documented in [.env.example](.env.example) and
-[docs/architecture.md](docs/architecture.md#configuration).
-
-The web GUI calls `GET /api/v1/meta` for the server version, `api_version` and
-`min_web_version`, so a separately deployed GUI can detect a version mismatch.
-
-## Deploying
-
-The Python packages and the GUI ship separately, so the GUI can be hosted by
-nginx/CDN while the server stays a plain pip install:
+Deployment keeps the GUI and Python separate:
 
 | Artifact | Contents |
 |---|---|
-| `bridge-agents` | core Python runtime (no server dependencies) |
+| `bridge-agents` | core runtime (no server dependencies) |
 | `bridge-agents-server` | FastAPI server, database models, CLI; pins the matching core version |
 | `bridge-agents-web-<version>.tar.gz` | built static GUI for nginx/CDN (never inside the wheel) |
 
 ```bash
-python -m venv /opt/bridge-agents/.venv
-/opt/bridge-agents/.venv/bin/pip install "bridge-agents-server[postgres]"
-
+pip install --find-links dist "bridge-agents-server[postgres]"
 bridge-agents init --config /etc/bridge-agents/bridge-agents.toml \
     --env-file /etc/bridge-agents/bridge-agents.env
 bridge-agents init-db --config /etc/bridge-agents/bridge-agents.toml
@@ -215,38 +300,21 @@ bridge-agents config check --config /etc/bridge-agents/bridge-agents.toml
 bridge-agents serve --config /etc/bridge-agents/bridge-agents.toml
 ```
 
-The standard topology is **nginx serving the static GUI and proxying `/api` and
-`/ws` to the server on `127.0.0.1:8000`** — same origin, no CORS needed.
 Copy [deploy/bridge-agents.service](deploy/bridge-agents.service) and
-[deploy/nginx.conf](deploy/nginx.conf), and follow
-[deploy/README.md](deploy/README.md) for the production checklist.
-
-Build all release artifacts from a checkout with `make release` (two wheels plus
-the versioned web archive).
+[deploy/nginx.conf](deploy/nginx.conf) and follow the production checklist in
+[deploy/README.md](deploy/README.md). `make release` builds both wheels and the
+versioned web archive.
 
 ## Packages and embedding
 
-This repository builds two Python distributions plus the web artifact:
+Two Python distributions plus the static GUI:
 
-- **`bridge-agents`** (import `bridge_agents`) — review-gated pipeline, graph
-  validation, retrieval, auth verifiers, moderation adapters, injection guard,
-  rate limiter, embeddable `AgentRuntime` and testing fakes.
-- **`bridge-agents-server`** — the FastAPI app, database models and the
-  `bridge-agents` CLI. Extras: `[postgres]`, `[mysql]`.
-- **Web UI** — React/Vite in `web/`, built into `web/dist` and released as a
-  static archive.
-
-Neither distribution is published on PyPI yet; build or install from a checkout:
-
-```bash
-uv build                                                   # both wheels in dist/
-pip install --find-links dist bridge-agents                # core library only
-pip install --find-links dist "bridge-agents-server[postgres]"
-uv sync                                                    # app + CLI in the local venv
-uv run bridge-agents version
-```
-
-Embed the runtime without the HTTP stack:
+- **`bridge-agents`** — review-gated pipeline, graph validation, retrieval, auth
+  verifiers, moderation adapters, injection guard, rate limiter, embeddable
+  `AgentRuntime` and testing fakes.
+- **`bridge-agents-server`** — FastAPI app, database models and CLI. Extras:
+  `[postgres]`, `[mysql]`.
+- **Web UI** — React/Vite in `web/`, released as a static archive.
 
 ```python
 from bridge_agents.runtime import AgentRuntime
@@ -257,7 +325,7 @@ async with AgentRuntime(llm=my_chat_model) as runtime:
         ...
 ```
 
-Mount the server in an existing FastAPI service if you already own the HTTP
+Mount the server into an existing FastAPI service if you already own the HTTP
 layer:
 
 ```python
@@ -267,157 +335,91 @@ app.mount("/bridge-agents", create_app())
 ```
 
 `bridge_agents.testing` ships deterministic `FakeChatModel` / `FakeModerator`
-doubles so tests need no network or API key. The library README is at
-[packages/bridge_agents/README.md](packages/bridge_agents/README.md).
-
-## Development
-
-Requirements: Python 3.11, [uv](https://github.com/astral-sh/uv) and Node 20+ for
-the web UI.
-
-```bash
-make demo        # mock model + API + built UI on :8000
-make test        # pytest (312 offline tests)
-make lint        # ruff check + format check
-make check       # lint + tests + web build
-make release     # wheels + static GUI release archive
-make help        # all targets
-```
-
-Backend layout: `app/` (FastAPI, models, services, CLI), `packages/bridge_agents/`
-(core library), `web/` (React UI), `tests/`, `deploy/`, `docs/`. Quality gates:
-pytest (91% combined coverage of `app/core` and the library), ruff, a repository
-sanitisation gate and CI for lint, tests, secrets and the web build.
-
-Start here:
-
-- [docs/architecture.md](docs/architecture.md) — API, runtime nodes, configuration, quality gates
-- [docs/design-decisions.md](docs/design-decisions.md) — why the product works this way
-- [deploy/README.md](deploy/README.md) — production topology and checklist
-- [CHANGELOG.md](CHANGELOG.md) — what changed recently
+doubles. Details: [packages/bridge_agents/README.md](packages/bridge_agents/README.md).
 
 ## Where it fits
 
 | | Bridge-Agents | Typical low-code bot builders |
 |---|---|---|
-| Built around reviewing the reply, not just generating it | ✅ review gate inside the runtime | moderation usually happens after generation |
-| Human handoff that stops the AI mid-answer | ✅ takeover cancels the pending reply | depends on the product |
-| The conversation flow lives with your code and review | ✅ saved configuration, validated before activation | usually edited in a hosted canvas |
-| Answers grounded in your documentation | ✅ hybrid retrieval with citations and an editable knowledge base | often prompt-only or a separate add-on |
-| Change the model or support prompt without a deploy | ✅ Studio settings, applied to the next message | usually an environment change and restart |
-| Self-hosted and embeddable | ✅ pip packages for the runtime/server, static GUI, one-command demo | often a closed SaaS platform |
+| Review is a runtime stage, not a prompt hint | ✅ buffered gate with fallbacks and retries | moderation often after generation |
+| Operators change the flow without code | ✅ validated visual graph, hot-swapped | yes, but often without a safety gate |
+| Fits an enterprise stack | ✅ IdP, system tools, existing docs, database, own nginx | often a closed SaaS platform |
+| Human handoff stops the AI | ✅ takeover cancels the pending reply | depends on the product |
+| Self-hosted and embeddable | ✅ pip packages + static GUI + one-command demo | usually not |
 
-Low-code platforms are great for drag-and-drop prototyping. Bridge-Agents is for
-teams whose replies carry commercial or legal weight — where "the bot said it"
-is not an acceptable answer.
+Low-code platforms are great for prototypes. Bridge-Agents is for teams whose
+customer replies carry commercial or legal weight — where "the bot said it" is
+not an acceptable answer.
 
-## Status
+## Status and roadmap
 
-**0.1.0 is in progress.** What is real today vs. what is next:
+**0.1.0 is in progress.** What is real today:
 
-| Now | Next |
+| Shipped | Next |
 |---|---|
-| Review-gated runtime: buffering, retries, fallbacks, safe defaults | Database migrations (Alembic) and an upgrade command |
-| Provider moderation: local hard gate + 5 providers, chunking, fail policy | Browser OIDC login flow (JWKS/RS256 token verification already exists) |
-| Model provider presets: OpenAI, Azure OpenAI and 13 more (OpenAI-compatible vendors + custom gateway) | PyPI publishing and container images (server + web) with release automation |
-| RAG with citations, upload, reindex and search preview | Slack adapter and a public webhook API |
-| Visual flow editor with node inspector, auto layout and JSON fallback | Embeddable customer widget, reranking and multi-tenant storage |
-| Support desk with takeover, AI/human labels and image transcript | Kubernetes/Helm deployment option |
-| Customer demo: nickname entry, conversation history, attachments, streaming | — |
-| Bilingual, responsive UI with light/dark themes | — |
-| Lark channel with signed webhook and two-way human replies | — |
-| Packaging: two pip distributions, TOML/env config, CLI, static web release, systemd/nginx templates | — |
-| Offline one-command demo and Docker Compose stack | — |
+| Review gate with buffered streaming, retries, fallbacks and takeover | Immutable audit log, flow version history, approvals and rollback |
+| Local hard gate + 5 provider moderation adapters with fail policy and chunking | Browser OIDC login flow (JWKS/RS256 verification already works) |
+| Visual flow editor with validation, node inspector, auto layout and JSON fallback | Declarative HTTP/OpenAPI tools so operators can wire more systems without Python |
+| Studio: knowledge upload/reindex, model provider presets, prompt editor | PyPI publishing, container images and release automation |
+| RAG with citations; 15 model provider presets including Azure OpenAI | Slack adapter, generic webhook API and an embeddable widget |
+| Support desk with takeover, AI/human labels and image transcript | Database migrations (Alembic) and a `db upgrade` command |
+| Customer demo with nickname entry, conversation history and attachments | Kubernetes/Helm deployment option |
+| Lark channel, bilingual/responsive UI, light/dark themes | — |
+| Packaging, CLI, TOML configuration, static GUI release, systemd/nginx templates | — |
 | 312 offline tests, 91% coverage, ruff and sanitisation gates | — |
 
 ## FAQ
 
-**Is this a chatbot builder?**
-No. It is the runtime *behind* a chat product: the part that decides what the AI
-may say, who can change the flow, and when a human steps in.
+**Can a non-programmer really change the AI flow?**
+Yes for the conversation behaviour: routing, prompt, knowledge, moderation,
+fallback and escalation are editable in Studio, validated on save and applied
+without redeploying. New *integrations* (a new system API connector, a custom node
+kind) currently need a small Python extension; declarative HTTP tools are next.
 
-**Do I need an API key to try it?**
-No. The default mode uses a deterministic mock model, so a fresh checkout works
-offline.
+**How do I know what the AI will say before a customer sees it?**
+The `review` node buffers the draft, checks it with a policy prompt and (optionally)
+provider moderation, and either releases it, retries, or sends the configured
+fallback. Human takeover can stop the AI mid-conversation.
 
-**Do I need Docker?**
-No. `uv sync && uv run bridge-agents demo` runs the whole demo locally. Docker
-Compose is an alternative that also runs offline.
+**Does it need a specific model vendor?**
+No. Any OpenAI-compatible endpoint works; Azure OpenAI has a native client and 13
+more provider presets ship in Studio. Anthropic is supported through a compatible
+gateway.
 
-**Is there a login screen in the demo?**
-No. Customers enter a nickname (used for addressing and to keep each browser's
-conversations separate) and start chatting. The internal demo login is for
-development only and is disabled in production.
+**Does it replace my CRM / order system / IdP?**
+No. It calls existing systems through tools and reuses your IdP, documentation,
+database and web server. Read-only integrations are the normal starting point.
 
-**Where are the two entry points?**
-`/` is the customer chat with no staff navigation. `/admin` is the staff portal:
-the support desk at `/admin`, Studio (flow, knowledge, settings) at
-`/admin/studio`.
-
-**Which models and moderation vendors are supported?**
-Model presets cover OpenAI, Azure OpenAI (native client), DeepSeek, Qwen, Kimi,
-Zhipu GLM, Doubao, ERNIE, MiniMax, SiliconFlow, OpenRouter, Gemini, Anthropic
-gateways, Ollama and any OpenAI-compatible endpoint. Moderation supports the
-local banned-word list plus OpenAI-compatible, Azure, Perspective, Alibaba Cloud
-and Tencent Cloud adapters.
-
-**Can I change the model or the support prompt without redeploying?**
-Yes. Studio → Settings changes provider/model/sampling/API key and the
-customer-support system prompt. Saving applies to the next message; the API key
-is stored encrypted and is never returned by the API.
-
-**Can a human reply to the customer?**
-Yes. The support desk shows a live transcript; take over the conversation and the
-reply box sends a real message the customer receives instantly. A bound Lark
-chat works the same way.
-
-**Does it answer from my own documentation?**
-Yes. The retriever indexes a knowledge directory (seeded from `docs/kb`, editable
-in Studio) and the assistant cites the passages it used. The default embedder is
-deterministic and offline; `RAG_EMBEDDER=openai` uses any `/v1/embeddings`
-endpoint.
-
-**Can a non-engineer edit the flow?**
-Yes. The visual editor saves configuration that is validated before it goes
-live; the JSON editor remains for advanced edits.
+**Do I need Docker or an API key to try it?**
+No. `uv sync && uv run bridge-agents demo` runs offline with a deterministic mock
+model; Docker Compose is an alternative.
 
 **Is it production-ready?**
-Not yet. 0.1.0 is the first release; see the [status table](#status) and the
-[deployment checklist](deploy/README.md) for what a real deployment still needs.
+0.1.0 is the first release. The runtime and deployment path are usable; the
+roadmap above lists the audit/approval, OIDC, migration and publishing work that a
+regulated production rollout should wait for. See
+[deploy/README.md](deploy/README.md).
 
-**Does the UI work in Chinese, on a phone, in dark mode?**
-Yes. The UI ships in English and 简体中文 with a remembered switch, is responsive
-down to 360 px, and supports light/dark themes that apply before first paint.
+**Where are the entry points?**
+`/` is the customer chat (no staff navigation); `/admin` is the staff portal with
+the support desk, and `/admin/studio` is the control plane (flow, knowledge,
+settings).
 
 ## Security and privacy
 
-No credentials or customer data are shipped with this repository. The demo login
-is never mounted in production, customer and staff roles are separated, provider
-keys stay in the environment (or encrypted runtime settings) and every change to
-the conversation flow is validated before it can go live. See
-[SECURITY.md](SECURITY.md) for vulnerability reporting.
+No credentials or customer data are shipped with the repository. The demo login
+is disabled in production, roles are separated, provider keys stay in the
+environment (or encrypted runtime settings), graph changes are validated before
+activation, moderation keys are vendor-scoped, and provider URLs can be restricted
+with an allow-list. See [SECURITY.md](SECURITY.md) for reporting.
 
-## Roadmap
+## Documentation
 
-- [x] Secure access with customer / support / admin roles
-- [x] Review-gated runtime with retries, fallbacks and safe defaults
-- [x] Admin API to edit, validate and reset the conversation flow
-- [x] Real-time conversations: sessions, messages, images and WebSocket streaming
-- [x] Browser demo: chat, flow editor and support desk with human takeover
-- [x] Human handoff that cancels the in-flight AI reply
-- [x] Retrieval-augmented answers: hybrid search, citations, upload and reindex
-- [x] Lark channel with signed events and two-way human replies
-- [x] Provider moderation for OpenAI, Azure, Perspective, Alibaba Cloud and Tencent Cloud
-- [x] Mainstream model provider presets including Azure OpenAI
-- [x] Customer demo with nicknames, conversation history and image attachments
-- [x] Bilingual, responsive UI with light/dark themes
-- [x] Packages, CLI, TOML configuration, static web release and deployment templates
-- [x] Offline one-command demo and Docker Compose stack
-- [ ] Database migrations (Alembic) and a `db upgrade` command
-- [ ] Browser OIDC login flow
-- [ ] PyPI publishing, container images and release automation
-- [ ] Slack adapter, public webhook API and an embeddable widget
-- [ ] Reranking, multi-tenant storage and a Kubernetes/Helm option
+- [docs/architecture.md](docs/architecture.md) — API, runtime nodes, configuration, quality gates
+- [docs/design-decisions.md](docs/design-decisions.md) — why the product works this way
+- [deploy/README.md](deploy/README.md) — production topology and checklist
+- [packages/bridge_agents/README.md](packages/bridge_agents/README.md) — library usage
+- [CHANGELOG.md](CHANGELOG.md) — recent changes
 
 ## License
 
@@ -426,6 +428,6 @@ Apache-2.0. See [LICENSE](LICENSE).
 ## Provenance
 
 Bridge-Agents is an independent, sanitized rewrite of a customer-conversation
-runtime the author built for an internal production system. It is published
-with written permission. No proprietary code, data, credentials, or customer
+runtime the author built for an internal production system. It is published with
+written permission. No proprietary code, data, credentials or customer
 information is included.
