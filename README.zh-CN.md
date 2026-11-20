@@ -104,7 +104,7 @@ flowchart LR
 ### Studio 覆盖运营的其余工作
 
 - **知识** — 上传文档、重建索引、搜索预览；也可以把 `DOCS_DIR` 指向已有的文档目录。
-- **模型** — 选择厂商预设（OpenAI、Azure OpenAI 等 15 个）、Endpoint 与模型；API Key 加密存储，接口不回显。
+- **模型** — 选择厂商预设（OpenAI、Azure OpenAI 等 15 个）与 Endpoint；填写 API Key 后自动从服务商获取可用模型并以下拉框选择（Azure 列出部署）。API Key 加密存储，接口不回显。
 - **客服提示词** — 在同一个地方编辑助手系统提示词。
 - **内容安全** — 在 sanitize 节点启用第三方审核，选择厂商、兜底文案与 fail-open / fail-closed 策略。
 - **角色与语言** — 客服与管理员可编辑，客户只能对话；界面中英双语、明暗主题、移动端自适应。
@@ -293,7 +293,7 @@ app.mount("/bridge-agents", create_app())
 | 客户演示：昵称进入、多会话记录、附件 | Kubernetes/Helm 部署选项 |
 | 飞书渠道、中英双语、响应式、明暗主题 | — |
 | 打包、CLI、TOML 配置、静态 GUI 发布、systemd/nginx 模板 | — |
-| 318 项离线测试、91% 覆盖率、ruff 与内容清洗门禁 | — |
+| 326 项离线测试、91% 覆盖率、ruff 与内容清洗门禁 | — |
 
 ## 常见问题
 

@@ -101,6 +101,11 @@ conversations, with a deterministic offline demo.
   accounts and workspaces, billing and invoices, refunds and cancellations,
   desktop sync, sign-in/SSO troubleshooting, API and webhooks, security and
   compliance, and support SLAs (10 documents, 64 indexed chunks).
+- **Model settings:** model names are no longer typed by hand. Once an API key
+  is available (new, stored or environment), Studio asks the provider for its
+  models — OpenAI-compatible `/models` or Azure deployments — and offers a
+  refreshable dropdown. The catalog endpoint is staff-only and never returns
+  the key.
 - **Knowledge base:** clicking a document in Studio opens a read-only full-text
   preview (backed by `GET /api/v1/admin/knowledge/documents/{name}`); staff-only,
   with size and passage counts, Escape/backdrop close.
@@ -108,7 +113,7 @@ conversations, with a deterministic offline demo.
   release workflow (wheels, static GUI archive, GHCR server/web images and a
   GitHub Release) and a manual PyPI trusted-publishing workflow, documented
   in `docs/releasing.md`.
-- **Quality:** 318 offline tests, 91% combined line coverage of `app/core` and
+- **Quality:** 326 offline tests, 91% combined line coverage of `app/core` and
   the library, ruff, a repository sanitisation gate and CI for lint, tests,
   secrets and web build.
 

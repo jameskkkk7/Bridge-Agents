@@ -15,6 +15,7 @@ import SelectMenu from "@/components/ui/select-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { deleteJson, errorText, getJson, putJson } from "@/api";
 import { useLanguage } from "@/i18n";
+import ModelPicker from "./ModelPicker";
 import { MODEL_PROVIDERS, providerPreset } from "./model-presets";
 
 interface ModelConfig {
@@ -93,11 +94,15 @@ export default function SettingsPanel({
     const preset = providerPreset(id);
     if (!preset || id === "custom") return;
     setBaseUrl(preset.baseUrl);
-    setModel(preset.model);
+    setModel("");
     if (preset.apiVersion) setApiVersion(preset.apiVersion);
   };
 
   const saveModel = async () => {
+    if (!model.trim()) {
+      onError(t("settings.modelRequired"));
+      return;
+    }
     onError("");
     setNotice("");
     setBusy("model");
@@ -233,15 +238,16 @@ export default function SettingsPanel({
                 />
               </div>
             )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="model-name">{t("settings.model")}</Label>
-              <Input
-                id="model-name"
-                value={model}
-                placeholder="gpt-4o-mini"
-                onChange={(event) => setModel(event.target.value)}
-              />
-            </div>
+            <ModelPicker
+              token={token}
+              provider={provider}
+              baseUrl={baseUrl}
+              apiVersion={apiVersion}
+              apiKey={apiKey}
+              apiKeyConfigured={config?.api_key_configured ?? false}
+              model={model}
+              onChange={setModel}
+            />
             <div className="grid gap-1.5">
               <Label htmlFor="model-key">{t("settings.apiKey")}</Label>
               <Input

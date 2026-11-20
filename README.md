@@ -123,8 +123,10 @@ restart.
 
 - **Knowledge** — upload documents, reindex, search-preview the retrieval index;
   point `DOCS_DIR` at an existing documentation folder.
-- **Model** — pick a provider preset (OpenAI, Azure OpenAI and 13 more), endpoint
-  and model; the API key is stored encrypted and never returned by the API.
+- **Model** — pick a provider preset (OpenAI, Azure OpenAI and 13 more) and an
+  endpoint; the available models are fetched from the provider and shown as a
+  dropdown (Azure lists deployments). The API key is stored encrypted and never
+  returned by the API.
 - **Support prompt** — edit the agent's system prompt in the same place.
 - **Moderation** — enable provider moderation per sanitize node, choose the
   vendor, fallback text and fail-open/fail-closed policy.
@@ -366,7 +368,7 @@ not an acceptable answer.
 | Customer demo with nickname entry, conversation history and attachments | Kubernetes/Helm deployment option |
 | Lark channel, bilingual/responsive UI, light/dark themes | — |
 | Packaging, CLI, TOML configuration, static GUI release, systemd/nginx templates | — |
-| 318 offline tests, 91% coverage, ruff and sanitisation gates | — |
+| 326 offline tests, 91% coverage, ruff and sanitisation gates | — |
 
 ## FAQ
 

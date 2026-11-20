@@ -20,6 +20,8 @@ from app.schemas.runtime_config import (
 from app.schemas.runtime_settings import (
     AgentPromptUpdate,
     AgentPromptView,
+    ModelCatalogRequest,
+    ModelCatalogResponse,
     ModelConfigUpdate,
     ModelConfigView,
 )
@@ -28,6 +30,7 @@ from app.services.agent_prompt_service import (
     extract_prompt,
     update_prompt,
 )
+from app.services.model_catalog_service import discover_models
 from app.services.model_config_service import (
     clear_override,
     describe,
@@ -119,6 +122,39 @@ async def read_model_config(
     settings = request.app.state.settings
     override = await load_override(db, settings)
     return ModelConfigView(**describe(settings, override))
+
+
+@router.post("/model-config/models", response_model=ModelCatalogResponse)
+async def list_model_catalog(
+    payload: ModelCatalogRequest,
+    request: Request,
+    _: User = Depends(require_agent),
+    db: AsyncSession = Depends(get_db),
+) -> ModelCatalogResponse:
+    """Ask the provider for its available models (never returns the API key)."""
+    settings = request.app.state.settings
+    override = await load_override(db, settings, include_secret=True)
+    provided_key = (payload.api_key or "").strip()
+    if provided_key:
+        api_key, key_source = provided_key, "request"
+    elif override and override.get("openai_api_key"):
+        api_key, key_source = str(override["openai_api_key"]), "runtime"
+    elif settings.openai_api_key:
+        api_key, key_source = settings.openai_api_key, "environment"
+    else:
+        api_key, key_source = None, "none"
+    models = await discover_models(
+        provider=payload.provider,
+        base_url=payload.base_url,
+        api_version=payload.api_version,
+        api_key=api_key,
+    )
+    return ModelCatalogResponse(
+        provider=payload.provider,
+        base_url=payload.base_url,
+        models=models,
+        api_key_source=key_source,
+    )
 
 
 @router.put("/model-config", response_model=ModelConfigView)

@@ -95,6 +95,52 @@ class ModelConfigUpdate(BaseModel):
         return cleaned
 
 
+class ModelCatalogRequest(BaseModel):
+    """Unsaved model settings used to ask the provider for its model list."""
+
+    provider: str = Field(default="openai", max_length=40)
+    base_url: str = Field(min_length=1, max_length=500)
+    api_version: str = Field(default="2024-10-21", max_length=40)
+    api_key: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Optional new key; the stored/environment key is used when omitted.",
+    )
+
+    @field_validator("provider")
+    @classmethod
+    def _validate_catalog_provider(cls, value: str) -> str:
+        cleaned = value.strip().lower()
+        if cleaned not in MODEL_PROVIDERS:
+            raise ValueError(f"unsupported model provider: {cleaned}")
+        return cleaned
+
+    @field_validator("base_url")
+    @classmethod
+    def _validate_catalog_base_url(cls, value: str) -> str:
+        cleaned = value.strip().rstrip("/")
+        parsed = urlparse(cleaned)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            raise ValueError("base_url must be an http(s) URL with a host")
+        if parsed.username or parsed.password:
+            raise ValueError("base_url must not contain credentials")
+        return cleaned
+
+    @field_validator("api_version")
+    @classmethod
+    def _validate_catalog_api_version(cls, value: str) -> str:
+        return value.strip()
+
+
+class ModelCatalogResponse(BaseModel):
+    """Models discovered from the provider, never including the API key."""
+
+    provider: str
+    base_url: str
+    models: list[str]
+    api_key_source: Literal["request", "runtime", "environment", "none"]
+
+
 class AgentPromptView(BaseModel):
     """The current agent role prompt and where it comes from."""
 

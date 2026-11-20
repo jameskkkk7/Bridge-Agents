@@ -14,12 +14,14 @@ export default function SelectMenu({
   options,
   onChange,
   ariaLabel,
+  disabled = false,
 }: {
   id?: string;
   value: string;
   options: SelectOption[];
   onChange: (value: string) => void;
   ariaLabel?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,8 +51,12 @@ export default function SelectMenu({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
+        disabled={disabled}
         onClick={() => setOpen((previous) => !previous)}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className={cn(
+          "flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+          disabled && "cursor-not-allowed opacity-60",
+        )}
       >
         <span className="truncate">{selected?.label ?? value}</span>
         <ChevronDown

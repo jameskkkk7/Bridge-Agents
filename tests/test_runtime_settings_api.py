@@ -263,3 +263,75 @@ async def test_default_agent_prompt_is_saveable(client: AsyncClient) -> None:
     )
     assert response.status_code == 200, response.text
     assert response.json()["system_prompt"] == DEFAULT_SYSTEM_PROMPT
+
+
+async def test_model_catalog_requires_staff(client: AsyncClient) -> None:
+    assert (
+        await client.post(
+            "/api/v1/admin/runtime-config/model-config/models",
+            json={"provider": "openai", "base_url": "https://llm.example.test/v1"},
+        )
+    ).status_code == 401
+    customer = await dev_login(client, "user")
+    response = await client.post(
+        "/api/v1/admin/runtime-config/model-config/models",
+        json={"provider": "openai", "base_url": "https://llm.example.test/v1"},
+        headers=bearer(customer["access_token"]),
+    )
+    assert response.status_code == 403
+
+
+async def test_model_catalog_returns_discovered_models(client: AsyncClient, monkeypatch) -> None:
+    headers = await _agent_headers(client)
+    captured: dict = {}
+
+    async def fake_discover(**kwargs) -> list[str]:
+        captured.update(kwargs)
+        return ["model-b", "model-a"]
+
+    monkeypatch.setattr("app.api.v1.admin.runtime_config.discover_models", fake_discover)
+    response = await client.post(
+        "/api/v1/admin/runtime-config/model-config/models",
+        json={
+            "provider": "openai",
+            "base_url": "https://llm.example.test/v1",
+            "api_version": "2024-10-21",
+            "api_key": "sk-request-key",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["models"] == ["model-b", "model-a"]
+    assert body["api_key_source"] == "request"
+    assert captured["api_key"] == "sk-request-key"
+    assert "sk-request-key" not in response.text
+
+
+async def test_model_catalog_falls_back_to_the_stored_key(client: AsyncClient, monkeypatch) -> None:
+    headers = await _agent_headers(client)
+    saved = await client.put(
+        "/api/v1/admin/runtime-config/model-config",
+        json={
+            "base_url": "https://llm.example.test/v1",
+            "model": "stored-model",
+            "api_key": "sk-stored-key",
+        },
+        headers=headers,
+    )
+    assert saved.status_code == 200
+    captured: dict = {}
+
+    async def fake_discover(**kwargs) -> list[str]:
+        captured.update(kwargs)
+        return ["stored-model"]
+
+    monkeypatch.setattr("app.api.v1.admin.runtime_config.discover_models", fake_discover)
+    response = await client.post(
+        "/api/v1/admin/runtime-config/model-config/models",
+        json={"provider": "openai", "base_url": "https://llm.example.test/v1"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["api_key_source"] == "runtime"
+    assert captured["api_key"] == "sk-stored-key"
